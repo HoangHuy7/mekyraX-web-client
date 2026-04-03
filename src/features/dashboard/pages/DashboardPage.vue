@@ -36,12 +36,12 @@ const statCards = [
     <h1 class="page-title">Dashboard</h1>
     <p class="page-subtitle">Welcome to the admin dashboard</p>
 
-    <el-row :gutter="20" class="stats-row">
-      <el-col :xs="24" :sm="12" :lg="6" v-for="card in statCards" :key="card.key">
+    <el-row :gutter="24" class="stats-row">
+      <el-col :xs="12" :sm="12" :md="12" :lg="6" v-for="card in statCards" :key="card.key">
         <el-card class="stat-card" shadow="hover" v-loading="loading">
           <div class="stat-content">
             <div class="stat-icon" :style="{ backgroundColor: card.color + '20', color: card.color }">
-              <el-icon :size="32">
+              <el-icon :size="48">
                 <component :is="card.icon" />
               </el-icon>
             </div>
@@ -56,50 +56,50 @@ const statCards = [
       </el-col>
     </el-row>
 
-    <el-row :gutter="20" class="content-row">
-      <el-col :xs="24" :lg="16">
-        <el-card shadow="hover">
+    <el-row :gutter="24" class="content-row">
+      <el-col :xs="24" :lg="14">
+        <el-card shadow="hover" class="full-height-card">
           <template #header>
-            <span>Recent Activity</span>
+            <span class="card-header">Recent Activity</span>
           </template>
           <el-timeline>
-            <el-timeline-item timestamp="2024-01-15" type="primary">
-              New product added: "Wireless Headphones Pro"
+            <el-timeline-item timestamp="2024-01-15" type="primary" size="large">
+              <span class="timeline-text">New product added: "Wireless Headphones Pro"</span>
             </el-timeline-item>
-            <el-timeline-item timestamp="2024-01-14" type="success">
-              Order #1234 completed successfully
+            <el-timeline-item timestamp="2024-01-14" type="success" size="large">
+              <span class="timeline-text">Order #1234 completed successfully</span>
             </el-timeline-item>
-            <el-timeline-item timestamp="2024-01-13" type="warning">
-              Low stock alert: "Gaming Mouse X5"
+            <el-timeline-item timestamp="2024-01-13" type="warning" size="large">
+              <span class="timeline-text">Low stock alert: "Gaming Mouse X5"</span>
             </el-timeline-item>
-            <el-timeline-item timestamp="2024-01-12" type="info">
-              System backup completed
+            <el-timeline-item timestamp="2024-01-12" type="info" size="large">
+              <span class="timeline-text">System backup completed</span>
             </el-timeline-item>
           </el-timeline>
         </el-card>
       </el-col>
 
-      <el-col :xs="24" :lg="8">
-        <el-card shadow="hover">
+      <el-col :xs="24" :lg="10">
+        <el-card shadow="hover" class="full-height-card">
           <template #header>
-            <span>Quick Actions</span>
+            <span class="card-header">Quick Actions</span>
           </template>
           <div class="quick-actions">
-            <el-button type="primary" plain class="action-btn">
-              <el-icon><Plus /></el-icon>
-              Add Product
+            <el-button type="primary" plain class="action-btn" size="large">
+              <el-icon :size="24"><Plus /></el-icon>
+              <span>Add Product</span>
             </el-button>
-            <el-button type="success" plain class="action-btn">
-              <el-icon><Document /></el-icon>
-              View Orders
+            <el-button type="success" plain class="action-btn" size="large">
+              <el-icon :size="24"><Document /></el-icon>
+              <span>View Orders</span>
             </el-button>
-            <el-button type="warning" plain class="action-btn">
-              <el-icon><Setting /></el-icon>
-              Settings
+            <el-button type="warning" plain class="action-btn" size="large">
+              <el-icon :size="24"><Setting /></el-icon>
+              <span>Settings</span>
             </el-button>
-            <el-button type="info" plain class="action-btn">
-              <el-icon><User /></el-icon>
-              Profile
+            <el-button type="info" plain class="action-btn" size="large">
+              <el-icon :size="24"><User /></el-icon>
+              <span>Profile</span>
             </el-button>
           </div>
         </el-card>
@@ -124,42 +124,53 @@ export default {
 
 <style scoped>
 .dashboard-page {
-  padding: 8px;
+  padding: 24px;
+  min-height: 100%;
 }
 
 .page-title {
-  margin: 0 0 8px;
-  font-size: 28px;
-  font-weight: 600;
+  margin: 0 0 12px;
+  font-size: 36px;
+  font-weight: 700;
   color: var(--el-text-color-primary);
 }
 
 .page-subtitle {
-  margin: 0 0 24px;
+  margin: 0 0 32px;
+  font-size: 18px;
   color: var(--el-text-color-secondary);
 }
 
 .stats-row {
-  margin-bottom: 20px;
+  margin-bottom: 32px;
 }
 
 .stat-card {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
+  border-radius: 16px;
+  min-height: 140px;
+  transition: transform 0.2s ease;
+}
+
+.stat-card:active {
+  transform: scale(0.98);
 }
 
 .stat-content {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
+  padding: 8px;
 }
 
 .stat-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 12px;
+  width: 88px;
+  height: 88px;
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .stat-info {
@@ -167,30 +178,102 @@ export default {
 }
 
 .stat-value {
-  font-size: 28px;
-  font-weight: 600;
+  font-size: 40px;
+  font-weight: 700;
   color: var(--el-text-color-primary);
   line-height: 1.2;
 }
 
 .stat-title {
-  font-size: 14px;
+  font-size: 18px;
   color: var(--el-text-color-secondary);
-  margin-top: 4px;
+  margin-top: 8px;
+  font-weight: 500;
 }
 
 .content-row {
-  margin-top: 20px;
+  margin-top: 24px;
+}
+
+.full-height-card {
+  min-height: 400px;
+  border-radius: 16px;
+}
+
+.card-header {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--el-text-color-primary);
+}
+
+.timeline-text {
+  font-size: 18px;
+  line-height: 1.6;
 }
 
 .quick-actions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 20px;
+  padding: 8px;
 }
 
 .action-btn {
   justify-content: flex-start;
-  gap: 8px;
+  gap: 16px;
+  height: 64px;
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 500;
+  padding: 0 24px;
+  transition: all 0.2s ease;
+}
+
+.action-btn:active {
+  transform: scale(0.97);
+}
+
+/* Kiosk/iPad optimizations */
+@media (max-width: 1024px) {
+  .dashboard-page {
+    padding: 16px;
+  }
+
+  .page-title {
+    font-size: 28px;
+  }
+
+  .page-subtitle {
+    font-size: 16px;
+  }
+
+  .stat-icon {
+    width: 72px;
+    height: 72px;
+  }
+
+  .stat-value {
+    font-size: 32px;
+  }
+
+  .stat-title {
+    font-size: 16px;
+  }
+
+  .action-btn {
+    height: 56px;
+    font-size: 18px;
+  }
+}
+
+/* Touch-friendly optimizations */
+@media (pointer: coarse) {
+  .stat-card {
+    cursor: pointer;
+  }
+
+  .action-btn {
+    min-height: 60px;
+  }
 }
 </style>
