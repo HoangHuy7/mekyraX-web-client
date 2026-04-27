@@ -1,1 +1,92 @@
-Nothing needs to be added to .gitignore since only a README.md file was modified and there are no build artifacts, dependencies, or temporary files in the changes.
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+
+# =========================
+# 🧱 Build output
+# =========================
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Binary build (custom name)
+gas-app
+bin/
+dist/
+build/
+
+# =========================
+# 📦 Go workspace
+# =========================
+go.work
+go.work.sum
+
+# =========================
+# 📁 Dependency cache (optional)
+# =========================
+vendor/
+
+# =========================
+# 🧪 Test & coverage
+# =========================
+coverage.out
+*.coverprofile
+
+# =========================
+# ⚙️ Environment & config
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# 🧠 IDE / Editor
+# =========================
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# =========================
+# 🍎 OS files
+# =========================
+.DS_Store
+
+# =========================
+# 🐳 Docker (optional)
+# =========================
+*.log
+tmp/
+
+.local/**
+
+**/node_modules
