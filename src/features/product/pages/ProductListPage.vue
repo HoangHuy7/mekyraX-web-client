@@ -49,8 +49,13 @@ const formatPrice = (price: number): string => {
   }).format(price);
 };
 
-const viewProduct = (id: number): void => {
+const viewProduct = (id: string): void => {
   router.push(`/products/${id}`);
+};
+
+const toggleProductStatus = async (id: string, status: ProductStatus): Promise<void> => {
+  const nextStatus: ProductStatus = status === 'active' ? 'inactive' : 'active';
+  await productStore.updateProductStatus(id, nextStatus);
 };
 </script>
 
@@ -101,7 +106,9 @@ const viewProduct = (id: number): void => {
           <template #default="{ row }">
             <div class="product-name">
               <span class="name">{{ row.name }}</span>
-              <span v-if="row.description" class="description">{{ row.description }}</span>
+              <span v-if="row.category || row.unit" class="description">
+                {{ row.category || 'General' }} · {{ row.unit || 'unit' }}
+              </span>
             </div>
           </template>
         </el-table-column>
@@ -111,6 +118,8 @@ const viewProduct = (id: number): void => {
             <span class="price">{{ formatPrice(row.price) }}</span>
           </template>
         </el-table-column>
+
+        <el-table-column prop="stockQuantity" label="Stock" width="100" sortable />
 
         <el-table-column prop="status" label="Status" width="100">
           <template #default="{ row }">
@@ -133,7 +142,7 @@ const viewProduct = (id: number): void => {
               link 
               :type="row.status === 'active' ? 'danger' : 'success'" 
               size="small"
-              @click="productStore.updateProductStatus(row.id, row.status === 'active' ? 'inactive' : 'active')"
+              @click="toggleProductStatus(row.id, row.status)"
             >
               {{ row.status === 'active' ? 'Deactivate' : 'Activate' }}
             </el-button>

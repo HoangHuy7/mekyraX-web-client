@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowLeft, Edit, Delete } from '@element-plus/icons-vue';
 import { productService } from '@/features/product/services/productService';
 import type { Product } from '@/features/product/types/product.types';
@@ -11,13 +12,10 @@ const router = useRouter();
 const product = ref<Product | null>(null);
 const loading = ref(true);
 
-const productId = ref<number>(0);
-
 onMounted(async () => {
-  const id = Number(route.params.id);
-  productId.value = id;
-  
-  if (isNaN(id)) {
+  const id = String(route.params.id || '');
+
+  if (!id) {
     router.push('/products');
     return;
   }
@@ -56,6 +54,30 @@ const formatDate = (dateString?: string): string => {
 const getStatusType = (status: string): string => {
   return status === 'active' ? 'success' : 'info';
 };
+
+const handleDelete = async (): Promise<void> => {
+  if (!product.value) {
+    return;
+  }
+
+  try {
+    await ElMessageBox.confirm(
+      `Delete product "${product.value.name}"?`,
+      'Confirm Delete',
+      {
+        confirmButtonText: 'Delete',
+        cancelButtonText: 'Cancel',
+        type: 'warning',
+      }
+    );
+
+    await productService.deleteProduct(product.value.id);
+    ElMessage.success('Product deleted');
+    router.push('/products');
+  } catch {
+    // User cancelled dialog.
+  }
+};
 </script>
 
 <template>
@@ -77,7 +99,7 @@ const getStatusType = (status: string): string => {
         <el-button type="primary" :icon="Edit">
           Edit
         </el-button>
-        <el-button type="danger" :icon="Delete" plain>
+        <el-button type="danger" :icon="Delete" plain @click="handleDelete">
           Delete
         </el-button>
       </div>
@@ -93,8 +115,8 @@ const getStatusType = (status: string): string => {
         </div>
 
         <h2 class="product-name">{{ product.name }}</h2>
-        <p v-if="product.description" class="product-description">
-          {{ product.description }}
+        <p v-if="product.category || product.unit" class="product-description">
+          {{ product.category || 'General' }} · {{ product.unit || 'unit' }}
         </p>
 
         <el-divider />
@@ -130,8 +152,8 @@ const getStatusType = (status: string): string => {
               <el-statistic title="Views" :value="5678" />
             </el-col>
             <el-col :span="8">
-              <el-statistic title="Stock" :value="89" />
-            </el-col>
+                <el-statistic title="Stock" :value="product.stockQuantity" />
+              </el-col>
           </el-row>
         </div>
       </template>

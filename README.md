@@ -122,6 +122,7 @@ VITE_CASDOOR_CLIENT_ID=your-client-id
 VITE_CASDOOR_ORG_NAME=your-org-name
 VITE_CASDOOR_APP_NAME=your-app-name
 VITE_CASDOOR_REDIRECT_PATH=/callback
+VITE_GRAPHQL_ENDPOINT=http://localhost:8082/graphql
 ```
 
 ### 4. Run development server
@@ -179,6 +180,7 @@ This will create distributable packages in `src-tauri/target/release/bundle/`:
 | `VITE_CASDOOR_ORG_NAME` | Organization name in Casdoor | `my-org` |
 | `VITE_CASDOOR_APP_NAME` | Application name in Casdoor | `my-app` |
 | `VITE_CASDOOR_REDIRECT_PATH` | OAuth callback path | `/callback` |
+| `VITE_GRAPHQL_ENDPOINT` | Backend GraphQL endpoint | `http://localhost:8082/graphql` |
 
 > ⚠️ **Important**: Never commit `.env` file to version control. Only `.env.example` should be committed.
 
@@ -196,9 +198,19 @@ This will create distributable packages in `src-tauri/target/release/bundle/`:
 - Overview statistics and quick actions
 
 ### Product Management (`src/features/product`)
-- Product listing with pagination
+- Product listing from GraphQL API
 - Product detail view
-- CRUD operations (if implemented)
+- Product status toggle and delete
+
+### Customer Management (`src/features/customer`)
+- Customer listing and detail view
+- Create/update/delete customer
+- Debt overview per customer
+
+### Order Management (`src/features/order`)
+- Order listing and detail view
+- Create order from UI
+- Update order status and delete order
 
 ## 🗄️ State Management
 

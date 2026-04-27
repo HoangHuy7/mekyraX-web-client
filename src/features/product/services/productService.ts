@@ -1,55 +1,186 @@
-import type { Product, ProductFilter } from '@/features/product/types/product.types';
+import { gql } from '@apollo/client/core';
+import { mapProduct, type GraphQLProduct, type PaginationInfo } from '@/shared/graphql/mappers';
+import { runMutation, runQuery } from '@/shared/graphql/request';
+import type { Product, ProductFilter, ProductMutationInput } from '@/features/product/types/product.types';
 
-const mockProducts: Product[] = [
-  { id: 1, name: 'Wireless Headphones Pro', price: 299.99, status: 'active', description: 'Premium noise-canceling headphones', createdAt: '2024-01-10' },
-  { id: 2, name: 'Gaming Mouse X5', price: 89.99, status: 'active', description: 'High-precision gaming mouse', createdAt: '2024-01-09' },
-  { id: 3, name: 'Mechanical Keyboard RGB', price: 159.99, status: 'active', description: 'Full-size mechanical keyboard', createdAt: '2024-01-08' },
-  { id: 4, name: 'USB-C Hub 7-in-1', price: 49.99, status: 'inactive', description: 'Multi-port USB-C adapter', createdAt: '2024-01-07' },
-  { id: 5, name: '4K Webcam Pro', price: 129.99, status: 'active', description: 'Ultra HD webcam for streaming', createdAt: '2024-01-06' },
-  { id: 6, name: 'Portable SSD 1TB', price: 119.99, status: 'active', description: 'High-speed external storage', createdAt: '2024-01-05' },
-  { id: 7, name: 'Wireless Charger Pad', price: 29.99, status: 'active', description: 'Fast wireless charging pad', createdAt: '2024-01-04' },
-  { id: 8, name: 'Bluetooth Speaker Mini', price: 59.99, status: 'inactive', description: 'Compact portable speaker', createdAt: '2024-01-03' },
-  { id: 9, name: 'Laptop Stand Aluminum', price: 39.99, status: 'active', description: 'Ergonomic laptop riser', createdAt: '2024-01-02' },
-  { id: 10, name: 'Cable Management Box', price: 19.99, status: 'active', description: 'Organize your cables', createdAt: '2024-01-01' },
-  { id: 11, name: 'Monitor Light Bar', price: 79.99, status: 'active', description: 'Screenbar for eye comfort', createdAt: '2023-12-31' },
-  { id: 12, name: 'Desk Mat Large', price: 24.99, status: 'inactive', description: 'Extended gaming mouse pad', createdAt: '2023-12-30' },
-  { id: 13, name: 'Phone Holder Adjustable', price: 14.99, status: 'active', description: 'Flexible phone stand', createdAt: '2023-12-29' },
-  { id: 14, name: 'HDMI Cable 6ft', price: 12.99, status: 'active', description: 'High-speed HDMI 2.1 cable', createdAt: '2023-12-28' },
-  { id: 15, name: 'Webcam Privacy Cover', price: 7.99, status: 'active', description: 'Slide camera cover', createdAt: '2023-12-27' },
-];
+const PRODUCT_FRAGMENT = gql`
+  fragment ProductFields on Product {
+    id
+    name
+    category
+    unit
+    price
+    cost_price
+    stock_quantity
+    barcode
+    created_at
+    updated_at
+    img_url
+  }
+`;
+
+const PRODUCTS_QUERY = gql`
+  query Products($filter: ProductFilter, $pagination: PaginationInput) {
+    products(filter: $filter, pagination: $pagination) {
+      data {
+        ...ProductFields
+      }
+      page_info {
+        total
+        page
+        page_size
+        has_next
+      }
+    }
+  }
+  ${PRODUCT_FRAGMENT}
+`;
+
+const PRODUCT_QUERY = gql`
+  query Product($id: ID!) {
+    product(id: $id) {
+      ...ProductFields
+    }
+  }
+  ${PRODUCT_FRAGMENT}
+`;
+
+const CREATE_PRODUCT_MUTATION = gql`
+  mutation CreateProduct($input: CreateProductInput!) {
+    createProduct(input: $input) {
+      ...ProductFields
+    }
+  }
+  ${PRODUCT_FRAGMENT}
+`;
+
+const UPDATE_PRODUCT_MUTATION = gql`
+  mutation UpdateProduct($input: UpdateProductInput!) {
+    updateProduct(input: $input) {
+      ...ProductFields
+    }
+  }
+  ${PRODUCT_FRAGMENT}
+`;
+
+const DELETE_PRODUCT_MUTATION = gql`
+  mutation DeleteProduct($id: ID!) {
+    deleteProduct(id: $id)
+  }
+`;
+
+interface ProductsQueryResponse {
+  products: {
+    data: GraphQLProduct[];
+    page_info: {
+      total: number;
+      page: number;
+      page_size: number;
+      has_next: boolean;
+    };
+  };
+}
+
+interface ProductQueryResponse {
+  product: GraphQLProduct | null;
+}
+
+interface ProductMutationResponse {
+  createProduct?: GraphQLProduct;
+  updateProduct?: GraphQLProduct;
+  deleteProduct?: boolean;
+}
+
+interface FetchProductsResult {
+  items: Product[];
+  pageInfo: PaginationInfo;
+}
+
+const toGraphQLDecimal = (value: number): string => value.toString();
+
+const toCreateProductInput = (input: ProductMutationInput) => ({
+  name: input.name,
+  price: toGraphQLDecimal(input.price),
+  category: input.category || null,
+  unit: input.unit || null,
+  cost_price: input.costPrice !== undefined ? toGraphQLDecimal(input.costPrice) : null,
+  stock_quantity: input.stockQuantity ?? 0,
+  barcode: input.barcode || null,
+});
+
+const toUpdateProductInput = (id: string, input: Partial<ProductMutationInput>) => ({
+  id,
+  ...(input.name !== undefined ? { name: input.name } : {}),
+  ...(input.price !== undefined ? { price: toGraphQLDecimal(input.price) } : {}),
+  ...(input.category !== undefined ? { category: input.category || null } : {}),
+  ...(input.unit !== undefined ? { unit: input.unit || null } : {}),
+  ...(input.costPrice !== undefined ? { cost_price: toGraphQLDecimal(input.costPrice) } : {}),
+  ...(input.stockQuantity !== undefined ? { stock_quantity: input.stockQuantity } : {}),
+  ...(input.barcode !== undefined ? { barcode: input.barcode || null } : {}),
+});
 
 export const productService = {
-  async fetchProducts(filter?: ProductFilter): Promise<Product[]> {
-    await new Promise((resolve) => setTimeout(resolve, 800));
+  async fetchProducts(filter?: ProductFilter): Promise<FetchProductsResult> {
+    const data = await runQuery<ProductsQueryResponse>(PRODUCTS_QUERY, {
+      filter: {
+        search: filter?.search || null,
+        min_price: filter?.minPrice !== undefined ? toGraphQLDecimal(filter.minPrice) : null,
+        max_price: filter?.maxPrice !== undefined ? toGraphQLDecimal(filter.maxPrice) : null,
+        category: filter?.category || null,
+      },
+      pagination: {
+        offset: 0,
+        limit: 200,
+      },
+    });
 
-    let result = [...mockProducts];
+    const items = (data.products?.data || []).map(mapProduct);
 
-    if (filter?.search) {
-      const searchLower = filter.search.toLowerCase();
-      result = result.filter(
-        (p) =>
-          p.name.toLowerCase().includes(searchLower) ||
-          p.description?.toLowerCase().includes(searchLower)
-      );
-    }
-
-    if (filter?.status) {
-      result = result.filter((p) => p.status === filter.status);
-    }
-
-    if (filter?.minPrice !== undefined) {
-      result = result.filter((p) => p.price >= filter.minPrice!);
-    }
-
-    if (filter?.maxPrice !== undefined) {
-      result = result.filter((p) => p.price <= filter.maxPrice!);
-    }
-
-    return result;
+    return {
+      items,
+      pageInfo: {
+        total: data.products?.page_info?.total ?? 0,
+        page: data.products?.page_info?.page ?? 1,
+        pageSize: data.products?.page_info?.page_size ?? items.length,
+        hasNext: data.products?.page_info?.has_next ?? false,
+      },
+    };
   },
 
-  async getProductById(id: number): Promise<Product | undefined> {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return mockProducts.find((p) => p.id === id);
+  async getProductById(id: string): Promise<Product | null> {
+    const data = await runQuery<ProductQueryResponse>(PRODUCT_QUERY, { id });
+    if (!data.product) {
+      return null;
+    }
+    return mapProduct(data.product);
+  },
+
+  async createProduct(input: ProductMutationInput): Promise<Product> {
+    const data = await runMutation<ProductMutationResponse>(CREATE_PRODUCT_MUTATION, {
+      input: toCreateProductInput(input),
+    });
+
+    if (!data.createProduct) {
+      throw new Error('Create product failed');
+    }
+
+    return mapProduct(data.createProduct);
+  },
+
+  async updateProduct(id: string, input: Partial<ProductMutationInput>): Promise<Product> {
+    const data = await runMutation<ProductMutationResponse>(UPDATE_PRODUCT_MUTATION, {
+      input: toUpdateProductInput(id, input),
+    });
+
+    if (!data.updateProduct) {
+      throw new Error('Update product failed');
+    }
+
+    return mapProduct(data.updateProduct);
+  },
+
+  async deleteProduct(id: string): Promise<boolean> {
+    const data = await runMutation<ProductMutationResponse>(DELETE_PRODUCT_MUTATION, { id });
+    return Boolean(data.deleteProduct);
   },
 };

@@ -10,6 +10,7 @@ import 'element-plus/theme-chalk/dark/css-vars.css';
 import App from './App.vue';
 import router from './shared/router';
 import type { CasdoorConfig } from './features/auth/types/auth.types';
+import { apolloClient } from './shared/graphql/client';
 
 const casdoorConfig: CasdoorConfig = {
   serverUrl: import.meta.env.VITE_CASDOOR_SERVER_URL,
@@ -28,6 +29,7 @@ app.use(pinia);
 app.use(router);
 app.use(ElementPlus);
 app.use(Casdoor, casdoorConfig);
+app.provide('apolloClient', apolloClient);
 
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
   app.component(key, component);

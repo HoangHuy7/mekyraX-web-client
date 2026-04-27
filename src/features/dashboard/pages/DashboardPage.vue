@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { Goods, Check, Money, List } from '@element-plus/icons-vue';
+import { useRouter } from 'vue-router';
+import { Goods, Check, Money, List, Plus, Document, User } from '@element-plus/icons-vue';
 import type { DashboardStats } from '@/features/dashboard/types/dashboard.types';
+
+const router = useRouter();
 
 const stats = ref<DashboardStats>({
   totalProducts: 0,
@@ -29,6 +32,18 @@ const statCards = [
   { title: 'Total Revenue', key: 'totalRevenue', icon: Money, color: '#E6A23C', prefix: '$' },
   { title: 'Pending Orders', key: 'pendingOrders', icon: List, color: '#F56C6C' },
 ];
+
+const goProducts = (): void => {
+  router.push('/products');
+};
+
+const goOrders = (): void => {
+  router.push('/orders');
+};
+
+const goCustomers = (): void => {
+  router.push('/customers');
+};
 </script>
 
 <template>
@@ -85,21 +100,17 @@ const statCards = [
             <span>Quick Actions</span>
           </template>
           <div class="quick-actions">
-            <el-button type="primary" plain class="action-btn">
+            <el-button type="primary" plain class="action-btn" @click="goProducts">
               <el-icon><Plus /></el-icon>
               Add Product
             </el-button>
-            <el-button type="success" plain class="action-btn">
+            <el-button type="success" plain class="action-btn" @click="goOrders">
               <el-icon><Document /></el-icon>
               View Orders
             </el-button>
-            <el-button type="warning" plain class="action-btn">
-              <el-icon><Setting /></el-icon>
-              Settings
-            </el-button>
-            <el-button type="info" plain class="action-btn">
+            <el-button type="info" plain class="action-btn" @click="goCustomers">
               <el-icon><User /></el-icon>
-              Profile
+              View Customers
             </el-button>
           </div>
         </el-card>
@@ -107,20 +118,6 @@ const statCards = [
     </el-row>
   </div>
 </template>
-
-<script lang="ts">
-import { Plus, Document, Setting, User } from '@element-plus/icons-vue';
-
-export default {
-  name: 'Dashboard',
-  components: {
-    Plus,
-    Document,
-    Setting,
-    User,
-  },
-};
-</script>
 
 <style scoped>
 .dashboard-page {

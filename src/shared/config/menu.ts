@@ -1,4 +1,11 @@
-import { HomeFilled, GoodsFilled, List, InfoFilled } from '@element-plus/icons-vue';
+import {
+  HomeFilled,
+  GoodsFilled,
+  List,
+  InfoFilled,
+  UserFilled,
+  Tickets,
+} from '@element-plus/icons-vue';
 import type { MenuItem } from '@/shared/types/menu.types';
 
 export const menuConfig: MenuItem[] = [
@@ -37,6 +44,68 @@ export const menuConfig: MenuItem[] = [
         icon: InfoFilled,
         meta: {
           title: 'Product Detail',
+          keepAlive: true,
+          hidden: true,
+        },
+      },
+    ],
+  },
+  {
+    id: 'customers',
+    label: 'Customers',
+    icon: UserFilled,
+    meta: {
+      title: 'Customers',
+    },
+    children: [
+      {
+        id: 'customer-list',
+        label: 'Customer List',
+        path: '/customers',
+        icon: List,
+        meta: {
+          title: 'Customer List',
+          keepAlive: true,
+        },
+      },
+      {
+        id: 'customer-detail',
+        label: 'Customer Detail',
+        path: '/customers/:id',
+        icon: InfoFilled,
+        meta: {
+          title: 'Customer Detail',
+          keepAlive: true,
+          hidden: true,
+        },
+      },
+    ],
+  },
+  {
+    id: 'orders',
+    label: 'Orders',
+    icon: Tickets,
+    meta: {
+      title: 'Orders',
+    },
+    children: [
+      {
+        id: 'order-list',
+        label: 'Order List',
+        path: '/orders',
+        icon: List,
+        meta: {
+          title: 'Order List',
+          keepAlive: true,
+        },
+      },
+      {
+        id: 'order-detail',
+        label: 'Order Detail',
+        path: '/orders/:id',
+        icon: InfoFilled,
+        meta: {
+          title: 'Order Detail',
           keepAlive: true,
           hidden: true,
         },

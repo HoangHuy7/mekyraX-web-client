@@ -17,7 +17,8 @@ export const useProductStore = defineStore('product', () => {
       result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(searchLower) ||
-          p.description?.toLowerCase().includes(searchLower)
+          p.category?.toLowerCase().includes(searchLower) ||
+          p.barcode?.toLowerCase().includes(searchLower)
       );
     }
 
@@ -41,8 +42,8 @@ export const useProductStore = defineStore('product', () => {
     error.value = null;
 
     try {
-      const data = await productService.fetchProducts(filter.value);
-      products.value = data;
+      const result = await productService.fetchProducts(filter.value);
+      products.value = result.items;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch products';
     } finally {
@@ -58,10 +59,16 @@ export const useProductStore = defineStore('product', () => {
     filter.value = {};
   };
 
-  const updateProductStatus = (id: number, status: ProductStatus): void => {
-    const product = products.value.find((p) => p.id === id);
-    if (product) {
-      product.status = status;
+  const updateProductStatus = async (id: string, status: ProductStatus): Promise<void> => {
+    try {
+      const targetStockQuantity = status === 'active' ? 1 : 0;
+      const updated = await productService.updateProduct(id, { stockQuantity: targetStockQuantity });
+      const index = products.value.findIndex((p) => p.id === id);
+      if (index >= 0) {
+        products.value[index] = updated;
+      }
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update product status';
     }
   };
 

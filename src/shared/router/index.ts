@@ -63,6 +63,46 @@ const routes: RouteRecordRaw[] = [
           keepAlive: true,
         },
       },
+      {
+        path: 'customers',
+        name: 'Customers',
+        component: () => import('@/features/customer/pages/CustomerListPage.vue'),
+        meta: {
+          title: 'Customers',
+          icon: 'UserFilled',
+          keepAlive: true,
+        },
+      },
+      {
+        path: 'customers/:id',
+        name: 'CustomerDetail',
+        component: () => import('@/features/customer/pages/CustomerDetailPage.vue'),
+        meta: {
+          title: 'Customer Detail',
+          icon: 'UserFilled',
+          keepAlive: true,
+        },
+      },
+      {
+        path: 'orders',
+        name: 'Orders',
+        component: () => import('@/features/order/pages/OrderListPage.vue'),
+        meta: {
+          title: 'Orders',
+          icon: 'Tickets',
+          keepAlive: true,
+        },
+      },
+      {
+        path: 'orders/:id',
+        name: 'OrderDetail',
+        component: () => import('@/features/order/pages/OrderDetailPage.vue'),
+        meta: {
+          title: 'Order Detail',
+          icon: 'Tickets',
+          keepAlive: true,
+        },
+      },
     ],
   },
 ];
