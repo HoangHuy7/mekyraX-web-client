@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import type { MenuItem as MenuItemType } from '@/shared/types/menu.types';
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
 const props = defineProps<Props>();
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 
 const hasChildren = computed<boolean>(() => {
   return !!props.item.children && props.item.children.length > 0;
@@ -35,7 +37,7 @@ const handleClick = (): void => {
         <el-icon v-if="item.icon">
           <component :is="item.icon" />
         </el-icon>
-        <span>{{ item.label }}</span>
+        <span>{{ t(item.label) }}</span>
       </template>
       <MenuItem
         v-for="child in item.children"
@@ -55,7 +57,7 @@ const handleClick = (): void => {
         <component :is="item.icon" />
       </el-icon>
       <template #title>
-        <span>{{ item.label }}</span>
+        <span>{{ t(item.label) }}</span>
       </template>
     </el-menu-item>
   </template>

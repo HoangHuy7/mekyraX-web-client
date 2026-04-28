@@ -123,6 +123,11 @@ interface FetchOrdersResult {
   pageInfo: PaginationInfo;
 }
 
+interface FetchOrdersOptions {
+  page?: number;
+  pageSize?: number;
+}
+
 const toGraphQLDecimal = (value: number): string => value.toString();
 
 const toCreateOrderInput = (input: CreateOrderInput) => ({
@@ -142,15 +147,22 @@ const toUpdateOrderInput = (input: UpdateOrderInput) => ({
 });
 
 export const orderService = {
-  async fetchOrders(filter?: OrderFilter): Promise<FetchOrdersResult> {
+  async fetchOrders(
+    filter?: OrderFilter,
+    options: FetchOrdersOptions = {}
+  ): Promise<FetchOrdersResult> {
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 10;
+    const offset = Math.max(0, (page - 1) * pageSize);
+
     const data = await runQuery<OrdersQueryResponse>(ORDERS_QUERY, {
       filter: {
         status: filter?.status || null,
         customer_id: filter?.customerId || null,
       },
       pagination: {
-        offset: 0,
-        limit: 200,
+        offset,
+        limit: pageSize,
       },
     });
 

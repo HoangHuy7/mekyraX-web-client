@@ -1,8 +1,9 @@
 import { ApolloClient, HttpLink, InMemoryCache, from } from '@apollo/client/core';
 import { setContext } from '@apollo/client/link/context';
+import { getGraphqlEndpoint } from '@/shared/config/runtimeConfig';
 
 const httpLink = new HttpLink({
-  uri: import.meta.env.VITE_GRAPHQL_ENDPOINT || '/graphql',
+  uri: () => getGraphqlEndpoint(),
 });
 
 const authLink = setContext((_, { headers }) => {

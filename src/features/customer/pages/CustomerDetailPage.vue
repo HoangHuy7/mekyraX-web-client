@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ArrowLeft } from '@element-plus/icons-vue';
 import { customerService } from '@/features/customer/services/customerService';
 import type { Customer } from '@/features/customer/types/customer.types';
+import { formatCurrencyVnd } from '@/shared/utils/formatters';
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 
 const customer = ref<Customer | null>(null);
 const loading = ref(true);
@@ -34,14 +37,11 @@ const goBack = (): void => {
 };
 
 const formatCurrency = (value: number): string =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value);
+  formatCurrencyVnd(value);
 
 const formatDate = (value?: string): string => {
   if (!value) {
-    return 'N/A';
+    return t('common.notAvailable');
   }
   return new Date(value).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -57,8 +57,8 @@ const formatDate = (value?: string): string => {
       <div class="header-left">
         <el-button :icon="ArrowLeft" circle @click="goBack" />
         <div>
-          <h1 class="page-title">Customer Detail</h1>
-          <p class="page-subtitle">View customer profile and debt summary</p>
+          <h1 class="page-title">{{ t('customers.customerDetail') }}</h1>
+          <p class="page-subtitle">{{ t('customers.customerProfile') }}</p>
         </div>
       </div>
     </div>
@@ -69,24 +69,24 @@ const formatDate = (value?: string): string => {
           <el-descriptions-item label="ID">
             {{ customer.id }}
           </el-descriptions-item>
-          <el-descriptions-item label="Name">
+          <el-descriptions-item :label="t('customers.name')">
             {{ customer.name }}
           </el-descriptions-item>
-          <el-descriptions-item label="Phone">
-            {{ customer.phone || 'N/A' }}
+          <el-descriptions-item :label="t('customers.phone')">
+            {{ customer.phone || t('common.notAvailable') }}
           </el-descriptions-item>
-          <el-descriptions-item label="Address">
-            {{ customer.address || 'N/A' }}
+          <el-descriptions-item :label="t('customers.address')">
+            {{ customer.address || t('common.notAvailable') }}
           </el-descriptions-item>
-          <el-descriptions-item label="Total Debt">
+          <el-descriptions-item :label="t('customers.totalDebt')">
             {{ formatCurrency(customer.totalDebt) }}
           </el-descriptions-item>
-          <el-descriptions-item label="Created At">
+          <el-descriptions-item :label="t('customers.createdAt')">
             {{ formatDate(customer.createdAt) }}
           </el-descriptions-item>
         </el-descriptions>
       </template>
-      <el-empty v-else description="Customer not found" />
+      <el-empty v-else :description="t('customers.customerNotFound')" />
     </el-card>
   </div>
 </template>

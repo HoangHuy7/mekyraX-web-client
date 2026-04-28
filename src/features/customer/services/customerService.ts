@@ -95,6 +95,11 @@ interface FetchCustomersResult {
   pageInfo: PaginationInfo;
 }
 
+interface FetchCustomersOptions {
+  page?: number;
+  pageSize?: number;
+}
+
 const toCustomerInput = (input: CustomerMutationInput) => ({
   name: input.name,
   phone: input.phone || null,
@@ -102,15 +107,22 @@ const toCustomerInput = (input: CustomerMutationInput) => ({
 });
 
 export const customerService = {
-  async fetchCustomers(filter?: CustomerFilter): Promise<FetchCustomersResult> {
+  async fetchCustomers(
+    filter?: CustomerFilter,
+    options: FetchCustomersOptions = {}
+  ): Promise<FetchCustomersResult> {
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 10;
+    const offset = Math.max(0, (page - 1) * pageSize);
+
     const data = await runQuery<CustomersQueryResponse>(CUSTOMERS_QUERY, {
       filter: {
         search: filter?.search || null,
         phone: filter?.phone || null,
       },
       pagination: {
-        offset: 0,
-        limit: 200,
+        offset,
+        limit: pageSize,
       },
     });
 

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { orderService } from '@/features/order/services/orderService';
+import type { PaginationInfo } from '@/shared/graphql/mappers';
 import type {
   CreateOrderInput,
   Order,
@@ -8,32 +9,32 @@ import type {
   UpdateOrderInput,
 } from '@/features/order/types/order.types';
 
+interface FetchOrdersOptions {
+  page?: number;
+  pageSize?: number;
+}
+
 export const useOrderStore = defineStore('order', () => {
   const orders = ref<Order[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
   const filter = ref<OrderFilter>({});
-
-  const filteredOrders = computed(() => {
-    let result = orders.value;
-
-    if (filter.value.status) {
-      result = result.filter((order) => order.status === filter.value.status);
-    }
-
-    if (filter.value.customerId) {
-      result = result.filter((order) => order.customerId === filter.value.customerId);
-    }
-
-    return result;
+  const pageInfo = ref<PaginationInfo>({
+    total: 0,
+    page: 1,
+    pageSize: 10,
+    hasNext: false,
   });
 
-  const fetchOrders = async (): Promise<void> => {
+  const filteredOrders = computed(() => orders.value);
+
+  const fetchOrders = async (options: FetchOrdersOptions = {}): Promise<void> => {
     loading.value = true;
     error.value = null;
     try {
-      const result = await orderService.fetchOrders(filter.value);
+      const result = await orderService.fetchOrders(filter.value, options);
       orders.value = result.items;
+      pageInfo.value = result.pageInfo;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch orders';
     } finally {
@@ -74,6 +75,7 @@ export const useOrderStore = defineStore('order', () => {
     loading,
     error,
     filter,
+    pageInfo,
     filteredOrders,
     fetchOrders,
     setFilter,

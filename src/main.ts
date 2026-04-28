@@ -11,28 +11,49 @@ import App from './App.vue';
 import router from './shared/router';
 import type { CasdoorConfig } from './features/auth/types/auth.types';
 import { apolloClient } from './shared/graphql/client';
+import { i18n } from './shared/i18n';
+import {
+  getStoredSetupInfo,
+  loadRuntimeConfig,
+  resolveCasdoorConfig,
+} from './shared/config/runtimeConfig';
 
-const casdoorConfig: CasdoorConfig = {
-  serverUrl: import.meta.env.VITE_CASDOOR_SERVER_URL,
-  clientId: import.meta.env.VITE_CASDOOR_CLIENT_ID,
-  organizationName: import.meta.env.VITE_CASDOOR_ORG_NAME,
-  appName: import.meta.env.VITE_CASDOOR_APP_NAME,
-  redirectPath: import.meta.env.VITE_CASDOOR_REDIRECT_PATH,
+const fallbackCasdoorConfig: CasdoorConfig = {
+  serverUrl: 'http://localhost:8000',
+  clientId: '',
+  organizationName: '',
+  appName: '',
+  redirectPath: '/callback',
 };
 
-const app = createApp(App);
+const bootstrap = async (): Promise<void> => {
+  let casdoorConfig: CasdoorConfig = fallbackCasdoorConfig;
+  try {
+    const runtimeConfig = await loadRuntimeConfig();
+    const setupInfo = getStoredSetupInfo();
+    casdoorConfig = resolveCasdoorConfig(runtimeConfig, setupInfo);
+    localStorage.setItem('app_graphql_endpoint', runtimeConfig.graphqlEndpoint);
+  } catch {
+    // keep fallback config and default graphql endpoint
+  }
 
-const pinia = createPinia();
-pinia.use(piniaPluginPersistedstate);
+  const app = createApp(App);
 
-app.use(pinia);
-app.use(router);
-app.use(ElementPlus);
-app.use(Casdoor, casdoorConfig);
-app.provide('apolloClient', apolloClient);
+  const pinia = createPinia();
+  pinia.use(piniaPluginPersistedstate);
 
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component);
-}
+  app.use(pinia);
+  app.use(router);
+  app.use(ElementPlus);
+  app.use(i18n);
+  app.use(Casdoor, casdoorConfig);
+  app.provide('apolloClient', apolloClient);
 
-app.mount('#app');
+  for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
+    app.component(key, component);
+  }
+
+  app.mount('#app');
+};
+
+bootstrap();

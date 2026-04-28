@@ -96,6 +96,11 @@ interface FetchProductsResult {
   pageInfo: PaginationInfo;
 }
 
+interface FetchProductsOptions {
+  page?: number;
+  pageSize?: number;
+}
+
 const toGraphQLDecimal = (value: number): string => value.toString();
 
 const toCreateProductInput = (input: ProductMutationInput) => ({
@@ -120,7 +125,14 @@ const toUpdateProductInput = (id: string, input: Partial<ProductMutationInput>) 
 });
 
 export const productService = {
-  async fetchProducts(filter?: ProductFilter): Promise<FetchProductsResult> {
+  async fetchProducts(
+    filter?: ProductFilter,
+    options: FetchProductsOptions = {}
+  ): Promise<FetchProductsResult> {
+    const page = options.page ?? 1;
+    const pageSize = options.pageSize ?? 10;
+    const offset = Math.max(0, (page - 1) * pageSize);
+
     const data = await runQuery<ProductsQueryResponse>(PRODUCTS_QUERY, {
       filter: {
         search: filter?.search || null,
@@ -129,8 +141,8 @@ export const productService = {
         category: filter?.category || null,
       },
       pagination: {
-        offset: 0,
-        limit: 200,
+        offset,
+        limit: pageSize,
       },
     });
 

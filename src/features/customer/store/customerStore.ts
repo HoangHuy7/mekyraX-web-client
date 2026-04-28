@@ -1,45 +1,39 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { customerService } from '@/features/customer/services/customerService';
+import type { PaginationInfo } from '@/shared/graphql/mappers';
 import type {
   Customer,
   CustomerFilter,
   CustomerMutationInput,
 } from '@/features/customer/types/customer.types';
 
+interface FetchCustomersOptions {
+  page?: number;
+  pageSize?: number;
+}
+
 export const useCustomerStore = defineStore('customer', () => {
   const customers = ref<Customer[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
   const filter = ref<CustomerFilter>({});
-
-  const filteredCustomers = computed(() => {
-    let result = customers.value;
-
-    if (filter.value.search) {
-      const searchValue = filter.value.search.toLowerCase();
-      result = result.filter(
-        (customer) =>
-          customer.name.toLowerCase().includes(searchValue) ||
-          customer.phone?.toLowerCase().includes(searchValue) ||
-          customer.address?.toLowerCase().includes(searchValue)
-      );
-    }
-
-    if (filter.value.phone) {
-      const phoneValue = filter.value.phone.toLowerCase();
-      result = result.filter((customer) => customer.phone?.toLowerCase().includes(phoneValue));
-    }
-
-    return result;
+  const pageInfo = ref<PaginationInfo>({
+    total: 0,
+    page: 1,
+    pageSize: 10,
+    hasNext: false,
   });
 
-  const fetchCustomers = async (): Promise<void> => {
+  const filteredCustomers = computed(() => customers.value);
+
+  const fetchCustomers = async (options: FetchCustomersOptions = {}): Promise<void> => {
     loading.value = true;
     error.value = null;
     try {
-      const result = await customerService.fetchCustomers(filter.value);
+      const result = await customerService.fetchCustomers(filter.value, options);
       customers.value = result.items;
+      pageInfo.value = result.pageInfo;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch customers';
     } finally {
@@ -83,6 +77,7 @@ export const useCustomerStore = defineStore('customer', () => {
     loading,
     error,
     filter,
+    pageInfo,
     filteredCustomers,
     fetchCustomers,
     setFilter,

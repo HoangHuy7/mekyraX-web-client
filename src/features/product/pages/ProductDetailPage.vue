@@ -1,16 +1,31 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { reactive, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { ArrowLeft, Edit, Delete } from '@element-plus/icons-vue';
 import { productService } from '@/features/product/services/productService';
-import type { Product } from '@/features/product/types/product.types';
+import type { Product, ProductMutationInput } from '@/features/product/types/product.types';
+import { formatCurrencyVnd } from '@/shared/utils/formatters';
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 
 const product = ref<Product | null>(null);
 const loading = ref(true);
+const editDialogVisible = ref(false);
+const saving = ref(false);
+
+const editForm = reactive({
+  name: '',
+  price: 0,
+  category: '',
+  unit: '',
+  costPrice: 0,
+  stockQuantity: 0,
+  barcode: '',
+});
 
 onMounted(async () => {
   const id = String(route.params.id || '');
@@ -36,14 +51,11 @@ const goBack = (): void => {
 };
 
 const formatPrice = (price: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(price);
+  return formatCurrencyVnd(price);
 };
 
 const formatDate = (dateString?: string): string => {
-  if (!dateString) return 'N/A';
+  if (!dateString) return t('common.notAvailable');
   return new Date(dateString).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -62,20 +74,70 @@ const handleDelete = async (): Promise<void> => {
 
   try {
     await ElMessageBox.confirm(
-      `Delete product "${product.value.name}"?`,
-      'Confirm Delete',
+      t('products.deleteConfirm', { name: product.value.name }),
+      t('common.confirmDelete'),
       {
-        confirmButtonText: 'Delete',
-        cancelButtonText: 'Cancel',
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
       }
     );
 
     await productService.deleteProduct(product.value.id);
-    ElMessage.success('Product deleted');
+    ElMessage.success(t('products.productDeleted'));
     router.push('/products');
   } catch {
     // User cancelled dialog.
+  }
+};
+
+const openEditDialog = (): void => {
+  if (!product.value) {
+    return;
+  }
+  editForm.name = product.value.name;
+  editForm.price = product.value.price;
+  editForm.category = product.value.category || '';
+  editForm.unit = product.value.unit || '';
+  editForm.costPrice = product.value.costPrice || 0;
+  editForm.stockQuantity = product.value.stockQuantity;
+  editForm.barcode = product.value.barcode || '';
+  editDialogVisible.value = true;
+};
+
+const submitEdit = async (): Promise<void> => {
+  if (!product.value) {
+    return;
+  }
+  if (!editForm.name.trim()) {
+    ElMessage.error(t('products.productNameRequired'));
+    return;
+  }
+  if (editForm.price < 0 || editForm.stockQuantity < 0) {
+    ElMessage.error(t('products.nonNegativePriceStock'));
+    return;
+  }
+
+  const input: ProductMutationInput = {
+    name: editForm.name.trim(),
+    price: editForm.price,
+    category: editForm.category.trim() || undefined,
+    unit: editForm.unit.trim() || undefined,
+    costPrice: editForm.costPrice,
+    stockQuantity: editForm.stockQuantity,
+    barcode: editForm.barcode.trim() || undefined,
+  };
+
+  saving.value = true;
+  try {
+    const updated = await productService.updateProduct(product.value.id, input);
+    product.value = updated;
+    editDialogVisible.value = false;
+    ElMessage.success(t('products.productUpdated'));
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('orders.updateFailed'));
+  } finally {
+    saving.value = false;
   }
 };
 </script>
@@ -91,16 +153,16 @@ const handleDelete = async (): Promise<void> => {
           class="back-btn"
         />
         <div>
-          <h1 class="page-title">Product Detail</h1>
-          <p class="page-subtitle">View product information</p>
+          <h1 class="page-title">{{ t('products.productDetail') }}</h1>
+          <p class="page-subtitle">{{ t('products.productInfo') }}</p>
         </div>
       </div>
       <div class="header-actions">
-        <el-button type="primary" :icon="Edit">
-          Edit
+        <el-button type="primary" :icon="Edit" @click="openEditDialog">
+          {{ t('common.edit') }}
         </el-button>
         <el-button type="danger" :icon="Delete" plain @click="handleDelete">
-          Delete
+          {{ t('common.delete') }}
         </el-button>
       </div>
     </div>
@@ -108,58 +170,101 @@ const handleDelete = async (): Promise<void> => {
     <el-card v-loading="loading" shadow="hover">
       <template v-if="product">
         <div class="product-header">
-          <div class="product-id">ID: {{ product.id }}</div>
+          <div class="product-meta">{{ product.category || t('products.general') }} · {{ product.unit || t('products.unitFallback') }}</div>
           <el-tag :type="getStatusType(product.status)" size="large">
             {{ product.status }}
           </el-tag>
         </div>
 
         <h2 class="product-name">{{ product.name }}</h2>
-        <p v-if="product.category || product.unit" class="product-description">
-          {{ product.category || 'General' }} · {{ product.unit || 'unit' }}
-        </p>
 
         <el-divider />
 
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="Price">
+          <el-descriptions-item :label="t('products.price')">
             <span class="price">{{ formatPrice(product.price) }}</span>
           </el-descriptions-item>
-          
-          <el-descriptions-item label="Status">
+          <el-descriptions-item :label="t('products.costPrice')">
+            {{ product.costPrice !== undefined ? formatPrice(product.costPrice) : t('common.notAvailable') }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('products.stockQuantity')">
+            {{ product.stockQuantity }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('common.status')">
             <el-tag :type="getStatusType(product.status)">
               {{ product.status }}
             </el-tag>
           </el-descriptions-item>
-
-          <el-descriptions-item label="Created At">
+          <el-descriptions-item :label="t('products.barcode')">
+            {{ product.barcode || t('common.notAvailable') }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('products.imageUrl')">
+            {{ product.imgUrl || t('common.notAvailable') }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('products.updatedAt')">
+            {{ formatDate(product.updatedAt) }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('products.createdAt')">
             {{ formatDate(product.createdAt) }}
           </el-descriptions-item>
-
-          <el-descriptions-item label="Product ID">
-            #{{ product.id }}
+          <el-descriptions-item :label="t('products.productId')">
+            {{ product.id }}
           </el-descriptions-item>
         </el-descriptions>
-
-        <el-divider />
-
-        <div class="product-stats">
-          <el-row :gutter="20">
-            <el-col :span="8">
-              <el-statistic title="Sales" :value="1234" />
-            </el-col>
-            <el-col :span="8">
-              <el-statistic title="Views" :value="5678" />
-            </el-col>
-            <el-col :span="8">
-                <el-statistic title="Stock" :value="product.stockQuantity" />
-              </el-col>
-          </el-row>
-        </div>
       </template>
 
-      <el-empty v-else description="Product not found" />
+      <el-empty v-else :description="t('products.productNotFound')" />
     </el-card>
+
+    <el-dialog v-model="editDialogVisible" :title="t('products.editProduct')" width="640px">
+      <el-form label-position="top">
+        <el-form-item :label="t('products.productName')" required>
+          <el-input v-model="editForm.name" />
+        </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item :label="t('products.price')" required>
+              <el-input-number v-model="editForm.price" :min="0" :step="0.01" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item :label="t('products.costPrice')">
+              <el-input-number v-model="editForm.costPrice" :min="0" :step="0.01" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item :label="t('products.category')">
+              <el-input v-model="editForm.category" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item :label="t('products.unit')">
+              <el-input v-model="editForm.unit" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item :label="t('products.stockQuantity')" required>
+              <el-input-number v-model="editForm.stockQuantity" :min="0" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item :label="t('products.barcode')">
+              <el-input v-model="editForm.barcode" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+      <template #footer>
+        <el-button @click="editDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button type="primary" :loading="saving" @click="submitEdit">
+          {{ t('common.save') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -216,7 +321,7 @@ export default {
   margin-bottom: 16px;
 }
 
-.product-id {
+.product-meta {
   font-size: 14px;
   color: var(--el-text-color-secondary);
 }
@@ -228,20 +333,9 @@ export default {
   color: var(--el-text-color-primary);
 }
 
-.product-description {
-  margin: 0 0 20px;
-  font-size: 16px;
-  color: var(--el-text-color-regular);
-  line-height: 1.6;
-}
-
 .price {
   font-size: 18px;
   font-weight: 600;
   color: var(--el-color-primary);
-}
-
-.product-stats {
-  margin-top: 20px;
 }
 </style>

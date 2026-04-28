@@ -1,130 +1,65 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { Plus, Refresh, View, Delete } from '@element-plus/icons-vue';
+import { Refresh, View, Delete } from '@element-plus/icons-vue';
 import { useOrderStore } from '@/features/order/store/orderStore';
-import { customerService } from '@/features/customer/services/customerService';
-import { productService } from '@/features/product/services/productService';
-import type { Customer } from '@/features/customer/types/customer.types';
-import type { Product } from '@/features/product/types/product.types';
-import type { Order, CreateOrderInput } from '@/features/order/types/order.types';
+import type { Order } from '@/features/order/types/order.types';
+import AppPagination from '@/shared/components/common/AppPagination.vue';
+import { formatCurrencyVnd } from '@/shared/utils/formatters';
 
 const orderStore = useOrderStore();
 const router = useRouter();
-
+const { t } = useI18n();
 const statusFilter = ref('');
+const currentPage = ref(1);
+const pageSize = ref(10);
 
-const createDialogVisible = ref(false);
-const submitting = ref(false);
-const customerOptions = ref<Customer[]>([]);
-const productOptions = ref<Product[]>([]);
-
-const createForm = reactive({
-  customerId: '',
-  productId: '',
-  quantity: 1,
-  price: 0,
-  paidAmount: 0,
-  note: '',
-});
-
-onMounted(async () => {
-  await Promise.all([
-    orderStore.fetchOrders(),
-    loadOptions(),
-  ]);
-});
-
-const loadOptions = async (): Promise<void> => {
-  const [customersResult, productsResult] = await Promise.all([
-    customerService.fetchCustomers(),
-    productService.fetchProducts(),
-  ]);
-  customerOptions.value = customersResult.items;
-  productOptions.value = productsResult.items;
+const fetchOrdersPage = async (): Promise<void> => {
+  await orderStore.fetchOrders({
+    page: currentPage.value,
+    pageSize: pageSize.value,
+  });
 };
+
+onMounted(() => {
+  fetchOrdersPage();
+});
 
 const applyFilter = (): void => {
   orderStore.setFilter({ status: statusFilter.value || undefined });
+  if (currentPage.value === 1) {
+    fetchOrdersPage();
+    return;
+  }
+  currentPage.value = 1;
 };
 
 const resetFilter = (): void => {
   statusFilter.value = '';
   orderStore.resetFilter();
-  orderStore.fetchOrders();
-};
-
-const totalAmountPreview = computed(() => createForm.quantity * createForm.price);
-
-const onSelectProduct = (): void => {
-  const selected = productOptions.value.find((item) => item.id === createForm.productId);
-  if (!selected) {
+  if (currentPage.value === 1) {
+    fetchOrdersPage();
     return;
   }
-  createForm.price = selected.price;
-  createForm.paidAmount = selected.price * createForm.quantity;
-};
-
-const openCreateDialog = (): void => {
-  createForm.customerId = '';
-  createForm.productId = '';
-  createForm.quantity = 1;
-  createForm.price = 0;
-  createForm.paidAmount = 0;
-  createForm.note = '';
-  createDialogVisible.value = true;
-};
-
-const submitCreateOrder = async (): Promise<void> => {
-  if (!createForm.productId) {
-    ElMessage.error('Please select a product');
-    return;
-  }
-
-  if (createForm.quantity <= 0) {
-    ElMessage.error('Quantity must be greater than 0');
-    return;
-  }
-
-  const input: CreateOrderInput = {
-    customerId: createForm.customerId || undefined,
-    paidAmount: createForm.paidAmount,
-    note: createForm.note || undefined,
-    items: [
-      {
-        productId: createForm.productId,
-        quantity: createForm.quantity,
-        price: createForm.price,
-      },
-    ],
-  };
-
-  submitting.value = true;
-  try {
-    await orderStore.createOrder(input);
-    ElMessage.success('Order created');
-    createDialogVisible.value = false;
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Create order failed');
-  } finally {
-    submitting.value = false;
-  }
+  currentPage.value = 1;
 };
 
 const removeOrder = async (order: Order): Promise<void> => {
   try {
     await ElMessageBox.confirm(
-      `Delete order "${order.code || order.id}"?`,
-      'Confirm Delete',
+      t('orders.deleteConfirm', { code: order.code || order.id }),
+      t('common.confirmDelete'),
       {
-        confirmButtonText: 'Delete',
-        cancelButtonText: 'Cancel',
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
       }
     );
     await orderStore.deleteOrder(order.id);
-    ElMessage.success('Order deleted');
+    ElMessage.success(t('orders.orderDeleted'));
+    fetchOrdersPage();
   } catch {
     // User cancelled dialog.
   }
@@ -142,149 +77,87 @@ const getStatusType = (status: string): string => {
 };
 
 const formatCurrency = (value: number): string =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value);
+  formatCurrencyVnd(value);
+
+watch([currentPage, pageSize], () => {
+  fetchOrdersPage();
+});
 </script>
 
 <template>
   <div class="order-list-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Orders</h1>
-        <p class="page-subtitle">Track sales orders and payment status</p>
+        <h1 class="page-title">{{ t('orders.title') }}</h1>
+        <p class="page-subtitle">{{ t('orders.subtitle') }}</p>
       </div>
-      <el-button type="primary" :icon="Plus" @click="openCreateDialog">
-        Create Order
-      </el-button>
     </div>
 
     <el-card shadow="hover" class="filter-card">
       <div class="filter-row">
-        <el-select v-model="statusFilter" placeholder="Filter by status" clearable @change="applyFilter">
-          <el-option label="Paid" value="paid" />
-          <el-option label="Debt" value="debt" />
-          <el-option label="Delivery" value="delivery" />
+        <el-select v-model="statusFilter" :placeholder="t('orders.filterByStatus')" clearable @change="applyFilter">
+          <el-option :label="t('orders.paid')" value="paid" />
+          <el-option :label="t('orders.debt')" value="debt" />
+          <el-option :label="t('orders.delivery')" value="delivery" />
         </el-select>
-        <el-button :icon="Refresh" @click="resetFilter">Reset</el-button>
+        <el-button :icon="Refresh" @click="resetFilter">{{ t('common.reset') }}</el-button>
       </div>
     </el-card>
 
     <el-card shadow="hover" v-loading="orderStore.loading">
       <el-table :data="orderStore.filteredOrders" stripe style="width: 100%">
-        <el-table-column prop="code" label="Code" min-width="140">
+        <el-table-column prop="code" :label="t('orders.code')" min-width="150">
           <template #default="{ row }">
             {{ row.code || row.id }}
           </template>
         </el-table-column>
-        <el-table-column label="Customer" min-width="200">
+        <el-table-column :label="t('orders.customer')" min-width="220">
           <template #default="{ row }">
-            {{ row.customer?.name || 'Walk-in customer' }}
+            {{ row.customer?.name || t('orders.walkInCustomer') }}
           </template>
         </el-table-column>
-        <el-table-column label="Total" width="120">
+        <el-table-column :label="t('orders.total')" width="130">
           <template #default="{ row }">
             {{ formatCurrency(row.totalAmount) }}
           </template>
         </el-table-column>
-        <el-table-column label="Paid" width="120">
+        <el-table-column :label="t('orders.paid')" width="130">
           <template #default="{ row }">
             {{ formatCurrency(row.paidAmount) }}
           </template>
         </el-table-column>
-        <el-table-column label="Debt" width="120">
+        <el-table-column :label="t('orders.debtAmount')" width="130">
           <template #default="{ row }">
             {{ formatCurrency(row.debtAmount) }}
           </template>
         </el-table-column>
-        <el-table-column label="Status" width="100">
+        <el-table-column :label="t('common.status')" width="110">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">
               {{ row.status }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Actions" width="180" fixed="right">
+        <el-table-column :label="t('common.actions')" width="190" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="viewOrder(row.id)">
               <el-icon><View /></el-icon>
-              View
+              {{ t('common.view') }}
             </el-button>
             <el-button link type="danger" size="small" @click="removeOrder(row)">
               <el-icon><Delete /></el-icon>
-              Delete
+              {{ t('common.delete') }}
             </el-button>
           </template>
         </el-table-column>
       </el-table>
+
+      <AppPagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :total="orderStore.pageInfo.total"
+      />
     </el-card>
-
-    <el-dialog v-model="createDialogVisible" title="Create Order" width="680px">
-      <el-form label-position="top">
-        <el-form-item label="Customer (optional)">
-          <el-select v-model="createForm.customerId" placeholder="Select customer" clearable filterable>
-            <el-option
-              v-for="customer in customerOptions"
-              :key="customer.id"
-              :label="customer.name"
-              :value="customer.id"
-            />
-          </el-select>
-        </el-form-item>
-
-        <el-form-item label="Product" required>
-          <el-select
-            v-model="createForm.productId"
-            placeholder="Select product"
-            filterable
-            @change="onSelectProduct"
-          >
-            <el-option
-              v-for="product in productOptions"
-              :key="product.id"
-              :label="`${product.name} (${formatCurrency(product.price)})`"
-              :value="product.id"
-            />
-          </el-select>
-        </el-form-item>
-
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="Quantity" required>
-              <el-input-number v-model="createForm.quantity" :min="1" @change="onSelectProduct" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="Unit Price" required>
-              <el-input-number v-model="createForm.price" :min="0" :step="0.01" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-
-        <el-form-item label="Paid Amount" required>
-          <el-input-number v-model="createForm.paidAmount" :min="0" :step="0.01" />
-        </el-form-item>
-
-        <el-alert
-          :title="`Order total: ${formatCurrency(totalAmountPreview)}`"
-          type="info"
-          :closable="false"
-          show-icon
-        />
-
-        <el-form-item label="Note">
-          <el-input v-model="createForm.note" type="textarea" :rows="3" placeholder="Order note" />
-        </el-form-item>
-      </el-form>
-
-      <template #footer>
-        <el-button @click="createDialogVisible = false">Cancel</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitCreateOrder">
-          Create
-        </el-button>
-      </template>
-    </el-dialog>
   </div>
 </template>
 

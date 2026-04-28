@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { useTabStore } from '@/shared/store/tabStore';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { useTabs } from '@/shared/hooks/useTabs';
+import { loadRuntimeConfig } from '@/shared/config/runtimeConfig';
 import TabBar from '@/shared/components/tabs/TabBar.vue';
 import SidebarMenu from '@/shared/components/menu/SidebarMenu.vue';
 import {
@@ -20,9 +22,16 @@ const route = useRoute();
 const router = useRouter();
 const tabStore = useTabStore();
 const authStore = useAuthStore();
+const { locale, t } = useI18n();
 
 const isCollapse = ref(false);
 const isDark = ref(false);
+const language = ref(locale.value);
+
+const languageOptions = computed(() => [
+  { value: 'vi', label: t('common.vietnamese') },
+  { value: 'en', label: t('common.english') },
+]);
 
 const cachedViews = computed(() => tabStore.cachedViews);
 
@@ -63,9 +72,16 @@ const handleLogout = (): void => {
 
 const logout = async () => {
   const token = localStorage.getItem('casdoor_access_token')
+  let casdoorServerUrl = 'http://localhost:8000';
+  try {
+    const config = await loadRuntimeConfig();
+    casdoorServerUrl = config.casdoorServerUrl;
+  } catch {
+    // use fallback
+  }
 
   try {
-    await fetch(`${import.meta.env.VITE_CASDOOR_SERVER_URL}/api/sso-logout`, {
+    await fetch(`${casdoorServerUrl}/api/sso-logout`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -79,6 +95,12 @@ const logout = async () => {
     router.push('/login')
   }
 }
+
+const changeLanguage = (value: string): void => {
+  locale.value = value;
+  language.value = value;
+  localStorage.setItem('app_locale', value);
+};
 </script>
 
 <template>
@@ -101,6 +123,19 @@ const logout = async () => {
           <breadcrumb />
         </div>
         <div class="header-right">
+          <el-select
+            v-model="language"
+            class="language-select"
+            size="small"
+            @change="changeLanguage"
+          >
+            <el-option
+              v-for="item in languageOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
           <el-switch
             v-model="isDark"
             active-text="Dark"
@@ -193,6 +228,10 @@ const logout = async () => {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.language-select {
+  width: 140px;
 }
 
 .main-content {

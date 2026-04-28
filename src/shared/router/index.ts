@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw, NavigationGuardNext, RouteLocationNormalized } from 'vue-router';
 import AdminLayout from '@/shared/components/layouts/AdminLayout.vue';
 import { useAuthStore } from '@/features/auth/store/auth.store';
+import { hasSetupInfo } from '@/shared/config/runtimeConfig';
 
 const routes: RouteRecordRaw[] = [
   {
@@ -23,6 +24,15 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: '/local/setup',
+    name: 'LocalSetup',
+    component: () => import('@/features/setup/pages/LocalSetupPage.vue'),
+    meta: {
+      public: true,
+      title: 'Setup',
+    },
+  },
+  {
     path: '/',
     redirect: '/dashboard',
   },
@@ -40,6 +50,16 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: 'Dashboard',
           icon: 'HomeFilled',
+          keepAlive: true,
+        },
+      },
+      {
+        path: 'order-workspace',
+        name: 'OrderWorkspace',
+        component: () => import('@/features/order/pages/OrderWorkspacePage.vue'),
+        meta: {
+          title: 'Order Workspace',
+          icon: 'Tickets',
           keepAlive: true,
         },
       },
@@ -118,6 +138,17 @@ router.beforeEach((
   next: NavigationGuardNext
 ) => {
   const authStore = useAuthStore();
+  const setupDone = hasSetupInfo();
+
+  if (!setupDone && to.path !== '/local/setup') {
+    next('/local/setup');
+    return;
+  }
+
+  if (setupDone && to.path === '/local/setup') {
+    next('/login');
+    return;
+  }
 
   if (!authStore.isAuthenticated) {
     authStore.restoreSession();

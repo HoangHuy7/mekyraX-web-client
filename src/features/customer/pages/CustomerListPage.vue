@@ -1,18 +1,24 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import { Plus, Search, Refresh, View, Edit, Delete } from '@element-plus/icons-vue';
 import { useCustomerStore } from '@/features/customer/store/customerStore';
 import type { Customer, CustomerMutationInput } from '@/features/customer/types/customer.types';
+import AppPagination from '@/shared/components/common/AppPagination.vue';
+import { formatCurrencyVnd } from '@/shared/utils/formatters';
 
 const customerStore = useCustomerStore();
 const router = useRouter();
+const { t } = useI18n();
 const searchQuery = ref('');
 
 const dialogVisible = ref(false);
 const editingCustomerId = ref<string | null>(null);
 const submitting = ref(false);
+const currentPage = ref(1);
+const pageSize = ref(10);
 
 const customerForm = reactive<CustomerMutationInput>({
   name: '',
@@ -21,8 +27,15 @@ const customerForm = reactive<CustomerMutationInput>({
 });
 
 onMounted(() => {
-  customerStore.fetchCustomers();
+  fetchCustomersPage();
 });
+
+const fetchCustomersPage = async (): Promise<void> => {
+  await customerStore.fetchCustomers({
+    page: currentPage.value,
+    pageSize: pageSize.value,
+  });
+};
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 watch(
@@ -39,14 +52,28 @@ watch(
 
 const handleSearch = (): void => {
   customerStore.setFilter({ search: searchQuery.value });
-  customerStore.fetchCustomers();
+
+  if (currentPage.value === 1) {
+    fetchCustomersPage();
+    return;
+  }
+  currentPage.value = 1;
 };
 
 const handleReset = (): void => {
   searchQuery.value = '';
   customerStore.resetFilter();
-  customerStore.fetchCustomers();
+
+  if (currentPage.value === 1) {
+    fetchCustomersPage();
+    return;
+  }
+  currentPage.value = 1;
 };
+
+watch([currentPage, pageSize], () => {
+  fetchCustomersPage();
+});
 
 const openCreateDialog = (): void => {
   editingCustomerId.value = null;
@@ -66,7 +93,7 @@ const openEditDialog = (customer: Customer): void => {
 
 const submitCustomer = async (): Promise<void> => {
   if (!customerForm.name.trim()) {
-    ElMessage.error('Customer name is required');
+    ElMessage.error(t('customers.customerNameRequired'));
     return;
   }
 
@@ -74,14 +101,14 @@ const submitCustomer = async (): Promise<void> => {
   try {
     if (editingCustomerId.value) {
       await customerStore.updateCustomer(editingCustomerId.value, customerForm);
-      ElMessage.success('Customer updated');
+      ElMessage.success(t('customers.customerUpdated'));
     } else {
       await customerStore.createCustomer(customerForm);
-      ElMessage.success('Customer created');
+      ElMessage.success(t('customers.customerCreated'));
     }
     dialogVisible.value = false;
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Action failed');
+    ElMessage.error(error instanceof Error ? error.message : t('customers.actionFailed'));
   } finally {
     submitting.value = false;
   }
@@ -94,26 +121,23 @@ const viewCustomer = (id: string): void => {
 const removeCustomer = async (customer: Customer): Promise<void> => {
   try {
     await ElMessageBox.confirm(
-      `Delete customer "${customer.name}"?`,
-      'Confirm Delete',
+      t('customers.deleteConfirm', { name: customer.name }),
+      t('common.confirmDelete'),
       {
-        confirmButtonText: 'Delete',
-        cancelButtonText: 'Cancel',
+        confirmButtonText: t('common.delete'),
+        cancelButtonText: t('common.cancel'),
         type: 'warning',
       }
     );
     await customerStore.deleteCustomer(customer.id);
-    ElMessage.success('Customer deleted');
+    ElMessage.success(t('customers.customerDeleted'));
   } catch {
     // User cancelled dialog.
   }
 };
 
 const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value);
+  return formatCurrencyVnd(value);
 };
 </script>
 
@@ -121,11 +145,11 @@ const formatCurrency = (value: number): string => {
   <div class="customer-list-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Customers</h1>
-        <p class="page-subtitle">Manage your customer directory</p>
+        <h1 class="page-title">{{ t('customers.title') }}</h1>
+        <p class="page-subtitle">{{ t('customers.subtitle') }}</p>
       </div>
       <el-button type="primary" :icon="Plus" @click="openCreateDialog">
-        Add Customer
+        {{ t('customers.addCustomer') }}
       </el-button>
     </div>
 
@@ -133,7 +157,7 @@ const formatCurrency = (value: number): string => {
       <div class="filter-row">
         <el-input
           v-model="searchQuery"
-          placeholder="Search customer by name, phone, address..."
+          :placeholder="t('customers.searchPlaceholder')"
           clearable
           class="search-input"
           @keyup.enter="handleSearch"
@@ -143,63 +167,69 @@ const formatCurrency = (value: number): string => {
           </template>
         </el-input>
         <el-button type="primary" @click="handleSearch">
-          Search
+          {{ t('common.search') }}
         </el-button>
         <el-button :icon="Refresh" @click="handleReset">
-          Reset
+          {{ t('common.reset') }}
         </el-button>
       </div>
     </el-card>
 
     <el-card shadow="hover" v-loading="customerStore.loading">
       <el-table :data="customerStore.filteredCustomers" stripe style="width: 100%">
-        <el-table-column prop="name" label="Name" min-width="220" />
-        <el-table-column prop="phone" label="Phone" min-width="150" />
-        <el-table-column prop="address" label="Address" min-width="220" />
-        <el-table-column label="Total Debt" width="140">
+        <el-table-column prop="name" :label="t('customers.name')" min-width="220" />
+        <el-table-column prop="phone" :label="t('customers.phone')" min-width="150" />
+        <el-table-column prop="address" :label="t('customers.address')" min-width="220" />
+        <el-table-column :label="t('customers.totalDebt')" width="140">
           <template #default="{ row }">
             {{ formatCurrency(row.totalDebt) }}
           </template>
         </el-table-column>
-        <el-table-column label="Actions" width="220" fixed="right">
+        <el-table-column :label="t('common.actions')" width="220" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="viewCustomer(row.id)">
               <el-icon><View /></el-icon>
-              View
+              {{ t('common.view') }}
             </el-button>
             <el-button link type="warning" size="small" @click="openEditDialog(row)">
               <el-icon><Edit /></el-icon>
-              Edit
+              {{ t('common.edit') }}
             </el-button>
             <el-button link type="danger" size="small" @click="removeCustomer(row)">
               <el-icon><Delete /></el-icon>
-              Delete
+              {{ t('common.delete') }}
             </el-button>
           </template>
         </el-table-column>
       </el-table>
+
+      <AppPagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :total="customerStore.pageInfo.total"
+      />
     </el-card>
 
     <el-dialog
       v-model="dialogVisible"
-      :title="editingCustomerId ? 'Edit Customer' : 'Create Customer'"
+      :title="editingCustomerId ? t('customers.editCustomer') : t('customers.createCustomer')"
       width="560px"
     >
       <el-form label-position="top">
-        <el-form-item label="Customer Name" required>
-          <el-input v-model="customerForm.name" placeholder="Customer name" />
+        <el-form-item :label="t('customers.customerName')" required>
+          <el-input v-model="customerForm.name" :placeholder="t('customers.customerName')" />
         </el-form-item>
-        <el-form-item label="Phone">
-          <el-input v-model="customerForm.phone" placeholder="Phone number" />
+        <el-form-item :label="t('customers.phone')">
+          <el-input v-model="customerForm.phone" :placeholder="t('customers.phone')" />
         </el-form-item>
-        <el-form-item label="Address">
-          <el-input v-model="customerForm.address" type="textarea" :rows="3" placeholder="Address" />
+        <el-form-item :label="t('customers.address')">
+          <el-input v-model="customerForm.address" type="textarea" :rows="3" :placeholder="t('customers.address')" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">Cancel</el-button>
+        <el-button @click="dialogVisible = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" :loading="submitting" @click="submitCustomer">
-          Save
+          {{ t('common.save') }}
         </el-button>
       </template>
     </el-dialog>

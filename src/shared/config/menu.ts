@@ -11,7 +11,7 @@ import type { MenuItem } from '@/shared/types/menu.types';
 export const menuConfig: MenuItem[] = [
   {
     id: 'dashboard',
-    label: 'Dashboard',
+    label: 'menu.dashboard',
     path: '/dashboard',
     icon: HomeFilled,
     meta: {
@@ -20,8 +20,18 @@ export const menuConfig: MenuItem[] = [
     },
   },
   {
+    id: 'order-workspace',
+    label: 'menu.orderWorkspace',
+    path: '/order-workspace',
+    icon: Tickets,
+    meta: {
+      title: 'Order Workspace',
+      keepAlive: true,
+    },
+  },
+  {
     id: 'products',
-    label: 'Products',
+    label: 'menu.products',
     icon: GoodsFilled,
     meta: {
       title: 'Products',
@@ -29,7 +39,7 @@ export const menuConfig: MenuItem[] = [
     children: [
       {
         id: 'product-list',
-        label: 'Product List',
+        label: 'menu.productList',
         path: '/products',
         icon: List,
         meta: {
@@ -39,7 +49,7 @@ export const menuConfig: MenuItem[] = [
       },
       {
         id: 'product-detail',
-        label: 'Product Detail',
+        label: 'menu.productDetail',
         path: '/products/:id',
         icon: InfoFilled,
         meta: {
@@ -52,7 +62,7 @@ export const menuConfig: MenuItem[] = [
   },
   {
     id: 'customers',
-    label: 'Customers',
+    label: 'menu.customers',
     icon: UserFilled,
     meta: {
       title: 'Customers',
@@ -60,7 +70,7 @@ export const menuConfig: MenuItem[] = [
     children: [
       {
         id: 'customer-list',
-        label: 'Customer List',
+        label: 'menu.customerList',
         path: '/customers',
         icon: List,
         meta: {
@@ -70,7 +80,7 @@ export const menuConfig: MenuItem[] = [
       },
       {
         id: 'customer-detail',
-        label: 'Customer Detail',
+        label: 'menu.customerDetail',
         path: '/customers/:id',
         icon: InfoFilled,
         meta: {
@@ -83,7 +93,7 @@ export const menuConfig: MenuItem[] = [
   },
   {
     id: 'orders',
-    label: 'Orders',
+    label: 'menu.orders',
     icon: Tickets,
     meta: {
       title: 'Orders',
@@ -91,7 +101,7 @@ export const menuConfig: MenuItem[] = [
     children: [
       {
         id: 'order-list',
-        label: 'Order List',
+        label: 'menu.orderList',
         path: '/orders',
         icon: List,
         meta: {
@@ -101,7 +111,7 @@ export const menuConfig: MenuItem[] = [
       },
       {
         id: 'order-detail',
-        label: 'Order Detail',
+        label: 'menu.orderDetail',
         path: '/orders/:id',
         icon: InfoFilled,
         meta: {

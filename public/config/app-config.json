@@ -1,0 +1,12 @@
+{
+  "casdoorServerUrl": "http://localhost:8000",
+  "redirectPath": "/callback",
+  "graphqlEndpoint": "http://localhost:8082/graphql",
+  "merchants": {
+    "vat_tu_my_loc": {
+      "CLIENT_ID": "d9fd6b715fd00e4fb8e7",
+      "ORG_NAME": "vat_tu_my_loc",
+      "APP_NAME": "vat_tu_my_loc"
+    }
+  }
+}

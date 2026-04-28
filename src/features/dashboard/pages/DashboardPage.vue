@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { Goods, Check, Money, List, Plus, Document, User } from '@element-plus/icons-vue';
 import type { DashboardStats } from '@/features/dashboard/types/dashboard.types';
+import { formatCurrencyVnd } from '@/shared/utils/formatters';
 
 const router = useRouter();
+const { t } = useI18n();
 
 const stats = ref<DashboardStats>({
   totalProducts: 0,
@@ -27,10 +30,10 @@ onMounted(async () => {
 });
 
 const statCards = [
-  { title: 'Total Products', key: 'totalProducts', icon: Goods, color: '#409EFF' },
-  { title: 'Active Products', key: 'activeProducts', icon: Check, color: '#67C23A' },
-  { title: 'Total Revenue', key: 'totalRevenue', icon: Money, color: '#E6A23C', prefix: '$' },
-  { title: 'Pending Orders', key: 'pendingOrders', icon: List, color: '#F56C6C' },
+  { title: 'dashboard.totalProducts', key: 'totalProducts', icon: Goods, color: '#409EFF' },
+  { title: 'dashboard.activeProducts', key: 'activeProducts', icon: Check, color: '#67C23A' },
+  { title: 'dashboard.totalRevenue', key: 'totalRevenue', icon: Money, color: '#E6A23C' },
+  { title: 'dashboard.pendingOrders', key: 'pendingOrders', icon: List, color: '#F56C6C' },
 ];
 
 const goProducts = (): void => {
@@ -38,7 +41,7 @@ const goProducts = (): void => {
 };
 
 const goOrders = (): void => {
-  router.push('/orders');
+  router.push('/order-workspace');
 };
 
 const goCustomers = (): void => {
@@ -48,8 +51,8 @@ const goCustomers = (): void => {
 
 <template>
   <div class="dashboard-page">
-    <h1 class="page-title">Dashboard</h1>
-    <p class="page-subtitle">Welcome to the admin dashboard</p>
+    <h1 class="page-title">{{ t('dashboard.title') }}</h1>
+    <p class="page-subtitle">{{ t('dashboard.subtitle') }}</p>
 
     <el-row :gutter="20" class="stats-row">
       <el-col :xs="24" :sm="12" :lg="6" v-for="card in statCards" :key="card.key">
@@ -62,9 +65,13 @@ const goCustomers = (): void => {
             </div>
             <div class="stat-info">
               <div class="stat-value">
-                {{ card.prefix || '' }}{{ stats[card.key as keyof DashboardStats].toLocaleString() }}
+                {{
+                  card.key === 'totalRevenue'
+                    ? formatCurrencyVnd(stats[card.key as keyof DashboardStats])
+                    : stats[card.key as keyof DashboardStats].toLocaleString()
+                }}
               </div>
-              <div class="stat-title">{{ card.title }}</div>
+              <div class="stat-title">{{ t(card.title) }}</div>
             </div>
           </div>
         </el-card>
@@ -75,20 +82,20 @@ const goCustomers = (): void => {
       <el-col :xs="24" :lg="16">
         <el-card shadow="hover">
           <template #header>
-            <span>Recent Activity</span>
+            <span>{{ t('dashboard.recentActivity') }}</span>
           </template>
           <el-timeline>
             <el-timeline-item timestamp="2024-01-15" type="primary">
-              New product added: "Wireless Headphones Pro"
+              {{ t('dashboard.activity1') }}
             </el-timeline-item>
             <el-timeline-item timestamp="2024-01-14" type="success">
-              Order #1234 completed successfully
+              {{ t('dashboard.activity2') }}
             </el-timeline-item>
             <el-timeline-item timestamp="2024-01-13" type="warning">
-              Low stock alert: "Gaming Mouse X5"
+              {{ t('dashboard.activity3') }}
             </el-timeline-item>
             <el-timeline-item timestamp="2024-01-12" type="info">
-              System backup completed
+              {{ t('dashboard.activity4') }}
             </el-timeline-item>
           </el-timeline>
         </el-card>
@@ -97,20 +104,20 @@ const goCustomers = (): void => {
       <el-col :xs="24" :lg="8">
         <el-card shadow="hover">
           <template #header>
-            <span>Quick Actions</span>
+            <span>{{ t('dashboard.quickActions') }}</span>
           </template>
           <div class="quick-actions">
             <el-button type="primary" plain class="action-btn" @click="goProducts">
               <el-icon><Plus /></el-icon>
-              Add Product
+              {{ t('dashboard.addProduct') }}
             </el-button>
             <el-button type="success" plain class="action-btn" @click="goOrders">
               <el-icon><Document /></el-icon>
-              View Orders
+              {{ t('dashboard.openOrderWorkspace') }}
             </el-button>
             <el-button type="info" plain class="action-btn" @click="goCustomers">
               <el-icon><User /></el-icon>
-              View Customers
+              {{ t('dashboard.viewCustomers') }}
             </el-button>
           </div>
         </el-card>

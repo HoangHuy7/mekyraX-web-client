@@ -1,27 +1,45 @@
 <script setup lang="ts">
 import { User, Plus } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
 import SDK from 'casdoor-js-sdk';
+import { ElMessage } from 'element-plus';
 import { useAuthStore } from '@/features/auth/store/auth.store';
+import { getStoredSetupInfo, loadRuntimeConfig, resolveCasdoorConfig } from '@/shared/config/runtimeConfig';
 
 const authStore = useAuthStore();
+const { t } = useI18n();
 
-const sdk = new SDK({
-  serverUrl: import.meta.env.VITE_CASDOOR_SERVER_URL,
-  clientId: import.meta.env.VITE_CASDOOR_CLIENT_ID,
-  appName: import.meta.env.VITE_CASDOOR_APP_NAME,
-  organizationName: import.meta.env.VITE_CASDOOR_ORG_NAME,
-  redirectPath: import.meta.env.VITE_CASDOOR_REDIRECT_PATH,
-  storage: localStorage,
-});
-
-const handleLogin = (): void => {
-  authStore.login();
-//   window.location.href = sdk.getSigninUrl();
-  sdk.signin_redirect()
+const createSdk = async (): Promise<SDK> => {
+  const runtimeConfig = await loadRuntimeConfig();
+  const setupInfo = getStoredSetupInfo();
+  const casdoorConfig = resolveCasdoorConfig(runtimeConfig, setupInfo);
+  return new SDK({
+    serverUrl: casdoorConfig.serverUrl,
+    clientId: casdoorConfig.clientId,
+    appName: casdoorConfig.appName,
+    organizationName: casdoorConfig.organizationName,
+    redirectPath: casdoorConfig.redirectPath,
+    storage: localStorage,
+  });
 };
 
-const handleSignup = (): void => {
-  sdk.signin_redirect();
+const handleLogin = async (): Promise<void> => {
+  authStore.login();
+  try {
+    const sdk = await createSdk();
+    sdk.signin_redirect();
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('callback.authFailed'));
+  }
+};
+
+const handleSignup = async (): Promise<void> => {
+  try {
+    const sdk = await createSdk();
+    sdk.signin_redirect();
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : t('callback.authFailed'));
+  }
 };
 
 
@@ -31,8 +49,8 @@ const handleSignup = (): void => {
   <div class="login-page">
     <el-card class="login-card" shadow="hover">
       <div class="login-header">
-        <h1 class="login-title">Welcome Back</h1>
-        <p class="login-subtitle">Sign in to your account to continue</p>
+        <h1 class="login-title">{{ t('login.welcomeBack') }}</h1>
+        <p class="login-subtitle">{{ t('login.subtitle') }}</p>
       </div>
 
       <div class="login-actions">
@@ -43,11 +61,11 @@ const handleSignup = (): void => {
           class="login-btn"
           @click="handleLogin"
         >
-          Sign In with Casdoor
+          {{ t('login.signInWithCasdoor') }}
         </el-button>
 
         <el-divider>
-          <span class="divider-text">or</span>
+          <span class="divider-text">{{ t('login.or') }}</span>
         </el-divider>
 
         <el-button
@@ -56,7 +74,7 @@ const handleSignup = (): void => {
           class="signup-btn"
           @click="handleSignup"
         >
-          Create Account
+          {{ t('login.createAccount') }}
         </el-button>
       </div>
 

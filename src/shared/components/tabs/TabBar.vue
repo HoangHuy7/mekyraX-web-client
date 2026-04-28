@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useTabStore } from '@/shared/store/tabStore';
-import { Close } from '@element-plus/icons-vue';
+import { Close, ArrowDown } from '@element-plus/icons-vue';
 
 const tabStore = useTabStore();
+const { t } = useI18n();
 
 const tabs = computed(() => tabStore.tabs);
 const activeTabPath = computed(() => tabStore.activeTabPath);
@@ -20,10 +22,35 @@ const handleCloseTab = (event: MouseEvent, path: string): void => {
 const handleContextMenu = (event: MouseEvent, _path: string): void => {
   event.preventDefault();
 };
+
+const closeOtherTabs = (): void => {
+  tabStore.closeOtherTabs(activeTabPath.value);
+};
+
+const closeAllTabs = (): void => {
+  tabStore.closeAllTabs();
+};
 </script>
 
 <template>
   <div class="tab-bar">
+    <el-dropdown trigger="click" class="tab-actions-dropdown">
+      <el-button text size="small">
+        {{ t('common.tabOptions') }}
+        <el-icon><ArrowDown /></el-icon>
+      </el-button>
+      <template #dropdown>
+        <el-dropdown-menu>
+          <el-dropdown-item @click="closeOtherTabs">
+            {{ t('common.closeOthers') }}
+          </el-dropdown-item>
+          <el-dropdown-item @click="closeAllTabs">
+            {{ t('common.closeAll') }}
+          </el-dropdown-item>
+        </el-dropdown-menu>
+      </template>
+    </el-dropdown>
+
     <div
       v-for="tab in tabs"
       :key="tab.path"
@@ -54,6 +81,10 @@ const handleContextMenu = (event: MouseEvent, _path: string): void => {
   gap: 4px;
   overflow-x: auto;
   scrollbar-width: thin;
+}
+
+.tab-actions-dropdown {
+  flex-shrink: 0;
 }
 
 .tab-bar::-webkit-scrollbar {

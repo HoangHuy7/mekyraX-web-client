@@ -1,28 +1,23 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { Loading } from '@element-plus/icons-vue';
 import SDK from 'casdoor-js-sdk';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import type { User } from '@/features/auth/types/auth.types';
+import { getStoredSetupInfo, loadRuntimeConfig, resolveCasdoorConfig } from '@/shared/config/runtimeConfig';
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
-
-const sdk = new SDK({
-  serverUrl: import.meta.env.VITE_CASDOOR_SERVER_URL,
-  clientId: import.meta.env.VITE_CASDOOR_CLIENT_ID,
-  appName: import.meta.env.VITE_CASDOOR_APP_NAME,
-  organizationName: import.meta.env.VITE_CASDOOR_ORG_NAME,
-  redirectPath: import.meta.env.VITE_CASDOOR_REDIRECT_PATH,
-  storage: localStorage,
-});
+const { t } = useI18n();
 
 const parseUserFromToken = (token: string): User => {
   try {
-    const result = sdk.parseAccessToken(token);
-    const payload = result.payload as unknown as Record<string, string>;
+    const payloadBase64 = token.split('.')[1];
+    const payloadJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+    const payload = JSON.parse(payloadJson) as Record<string, string>;
     return {
       id: payload.sub || payload.id || payload.name || '',
       name: payload.name || payload.preferred_username || '',
@@ -31,10 +26,10 @@ const parseUserFromToken = (token: string): User => {
       avatar: payload.avatar || '',
     };
   } catch {
-    return {
-      id: 'unknown',
-      name: 'Unknown User',
-    };
+      return {
+        id: 'unknown',
+        name: t('callback.unknownUser'),
+      };
   }
 };
 
@@ -43,20 +38,32 @@ onMounted(async () => {
     authStore.setLoading(true);
     const code = route.query.code as string;
 
-    if (!code) {
-      authStore.setError('Authentication failed: No authorization code received');
-      setTimeout(() => router.push('/login'), 2000);
-      return;
-    }
+      if (!code) {
+        authStore.setError(t('callback.noAuthCode'));
+        setTimeout(() => router.push('/login'), 2000);
+        return;
+      }
+
+    const runtimeConfig = await loadRuntimeConfig();
+    const setupInfo = getStoredSetupInfo();
+    const casdoorConfig = resolveCasdoorConfig(runtimeConfig, setupInfo);
+    const sdk = new SDK({
+      serverUrl: casdoorConfig.serverUrl,
+      clientId: casdoorConfig.clientId,
+      appName: casdoorConfig.appName,
+      organizationName: casdoorConfig.organizationName,
+      redirectPath: casdoorConfig.redirectPath,
+      storage: localStorage,
+    });
 
     const response = await sdk.exchangeForAccessToken();
     const accessToken = response.access_token;
 
-    if (!accessToken) {
-      authStore.setError('Authentication failed: Unable to get access token');
-      setTimeout(() => router.push('/login'), 2000);
-      return;
-    }
+      if (!accessToken) {
+        authStore.setError(t('callback.noAccessToken'));
+        setTimeout(() => router.push('/login'), 2000);
+        return;
+      }
 
     localStorage.setItem('casdoor_access_token', accessToken);
 
@@ -70,7 +77,7 @@ onMounted(async () => {
     router.push(redirectPath);
   } catch (err) {
     authStore.setLoading(false);
-    authStore.setError(err instanceof Error ? err.message : 'Authentication failed');
+    authStore.setError(err instanceof Error ? err.message : t('callback.authFailed'));
     setTimeout(() => router.push('/login'), 2000);
   }
 });
@@ -82,8 +89,8 @@ onMounted(async () => {
       <el-icon class="loading-icon" :size="48">
         <Loading />
       </el-icon>
-      <h2 class="callback-title">Processing Authentication</h2>
-      <p class="callback-text">Please wait while we verify your credentials...</p>
+      <h2 class="callback-title">{{ t('callback.processing') }}</h2>
+      <p class="callback-text">{{ t('callback.verifyCredentials') }}</p>
 
       <el-alert
         v-if="authStore.error"

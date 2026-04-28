@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import { ArrowLeft } from '@element-plus/icons-vue';
 import { orderService } from '@/features/order/services/orderService';
 import type { Order } from '@/features/order/types/order.types';
+import { formatCurrencyVnd } from '@/shared/utils/formatters';
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 
 const order = ref<Order | null>(null);
 const loading = ref(true);
@@ -45,23 +48,20 @@ const saveStatus = async (): Promise<void> => {
   try {
     const updated = await orderService.updateOrder(order.value.id, { status: status.value });
     order.value = updated;
-    ElMessage.success('Order status updated');
+    ElMessage.success(t('orders.orderStatusUpdated'));
   } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : 'Update failed');
+    ElMessage.error(error instanceof Error ? error.message : t('orders.updateFailed'));
   } finally {
     saving.value = false;
   }
 };
 
 const formatCurrency = (value: number): string =>
-  new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-  }).format(value);
+  formatCurrencyVnd(value);
 
 const formatDate = (value?: string): string => {
   if (!value) {
-    return 'N/A';
+    return t('common.notAvailable');
   }
   return new Date(value).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -77,8 +77,8 @@ const formatDate = (value?: string): string => {
       <div class="header-left">
         <el-button :icon="ArrowLeft" circle @click="goBack" />
         <div>
-          <h1 class="page-title">Order Detail</h1>
-          <p class="page-subtitle">Review order items and payment state</p>
+          <h1 class="page-title">{{ t('orders.orderDetail') }}</h1>
+          <p class="page-subtitle">{{ t('orders.orderReviewSubtitle') }}</p>
         </div>
       </div>
     </div>
@@ -86,55 +86,55 @@ const formatDate = (value?: string): string => {
     <el-card v-loading="loading" shadow="hover">
       <template v-if="order">
         <el-descriptions :column="2" border>
-          <el-descriptions-item label="Order Code">
+          <el-descriptions-item :label="t('orders.orderCode')">
             {{ order.code || order.id }}
           </el-descriptions-item>
-          <el-descriptions-item label="Customer">
-            {{ order.customer?.name || 'Walk-in customer' }}
+          <el-descriptions-item :label="t('orders.customer')">
+            {{ order.customer?.name || t('orders.walkInCustomer') }}
           </el-descriptions-item>
-          <el-descriptions-item label="Total Amount">
+          <el-descriptions-item :label="t('orders.totalAmount')">
             {{ formatCurrency(order.totalAmount) }}
           </el-descriptions-item>
-          <el-descriptions-item label="Paid Amount">
+          <el-descriptions-item :label="t('orders.paidAmount')">
             {{ formatCurrency(order.paidAmount) }}
           </el-descriptions-item>
-          <el-descriptions-item label="Debt Amount">
+          <el-descriptions-item :label="t('orders.debtAmountLabel')">
             {{ formatCurrency(order.debtAmount) }}
           </el-descriptions-item>
-          <el-descriptions-item label="Created At">
+          <el-descriptions-item :label="t('orders.createdAt')">
             {{ formatDate(order.createdAt) }}
           </el-descriptions-item>
         </el-descriptions>
 
         <div class="status-editor">
-          <el-select v-model="status" placeholder="Order status">
-            <el-option label="Paid" value="paid" />
-            <el-option label="Debt" value="debt" />
-            <el-option label="Delivery" value="delivery" />
+          <el-select v-model="status" :placeholder="t('orders.orderStatus')">
+            <el-option :label="t('orders.paid')" value="paid" />
+            <el-option :label="t('orders.debt')" value="debt" />
+            <el-option :label="t('orders.delivery')" value="delivery" />
           </el-select>
           <el-button type="primary" :loading="saving" @click="saveStatus">
-            Save Status
+            {{ t('orders.saveStatus') }}
           </el-button>
         </div>
 
         <el-divider />
 
         <el-table :data="order.items" stripe style="width: 100%">
-          <el-table-column prop="productName" label="Product" min-width="220" />
-          <el-table-column prop="quantity" label="Qty" width="100" />
-          <el-table-column label="Price" width="140">
+          <el-table-column prop="productName" :label="t('orders.product')" min-width="220" />
+          <el-table-column prop="quantity" :label="t('orders.qty')" width="100" />
+          <el-table-column :label="t('products.price')" width="140">
             <template #default="{ row }">
               {{ formatCurrency(row.price) }}
             </template>
           </el-table-column>
-          <el-table-column label="Total" width="140">
+          <el-table-column :label="t('orders.total')" width="140">
             <template #default="{ row }">
               {{ formatCurrency(row.total) }}
             </template>
           </el-table-column>
         </el-table>
       </template>
-      <el-empty v-else description="Order not found" />
+      <el-empty v-else :description="t('orders.orderNotFound')" />
     </el-card>
   </div>
 </template>
