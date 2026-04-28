@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { User, Plus } from '@element-plus/icons-vue';
+import { User, Plus, Setting } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import SDK from 'casdoor-js-sdk';
-import { ElMessage } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 import { useAuthStore } from '@/features/auth/store/auth.store';
 import { getStoredSetupInfo, loadRuntimeConfig, resolveCasdoorConfig } from '@/shared/config/runtimeConfig';
 
@@ -42,11 +42,45 @@ const handleSignup = async (): Promise<void> => {
   }
 };
 
+const SETUP_STORAGE_KEY = 'app_setup_info';
+
+const handleResetSetup = async (): Promise<void> => {
+  try {
+    await ElMessageBox.confirm(
+      t('login.resetSetupConfirm'),
+      t('login.resetSetup'),
+      {
+        confirmButtonText: t('common.reset'),
+        cancelButtonText: t('common.cancel'),
+        type: 'warning',
+      }
+    );
+    
+    localStorage.removeItem(SETUP_STORAGE_KEY);
+    ElMessage.success(t('login.setupReset'));
+    
+    // Reload the page to trigger the setup flow
+    window.location.href = '/setup';
+  } catch {
+    // User cancelled
+  }
+};
+
 
 </script>
 
 <template>
   <div class="login-page">
+    <el-button
+      class="reset-setup-btn"
+      :icon="Setting"
+      size="small"
+      text
+      @click="handleResetSetup"
+    >
+      {{ t('login.resetSetup') }}
+    </el-button>
+    
     <el-card class="login-card" shadow="hover">
       <div class="login-header">
         <h1 class="login-title">{{ t('login.welcomeBack') }}</h1>
@@ -105,6 +139,15 @@ export default {
   justify-content: center;
   background: linear-gradient(135deg, var(--el-color-primary-light-9) 0%, var(--el-bg-color-page) 100%);
   padding: 20px;
+  position: relative;
+}
+
+.reset-setup-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 12px;
+  color: var(--el-text-color-secondary);
 }
 
 .login-card {

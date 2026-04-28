@@ -49,9 +49,7 @@ const submitSetup = (): void => {
   const merchantIds = Object.keys(runtimeConfig.value?.merchants || {});
   if (!merchantIds.includes(merchantId)) {
     ElMessage.error(
-      t('setup.invalidMerchantId', {
-        expected: merchantIds.join(', ') || 'vat_tu_my_loc',
-      })
+      t('setup.invalidMerchantId')
     );
     return;
   }
@@ -92,13 +90,6 @@ const submitSetup = (): void => {
 
         <el-form-item :label="t('setup.merchantId')" required>
           <el-input v-model="form.merchantId" :placeholder="t('setup.merchantIdPlaceholder')" />
-          <div class="merchant-hint">
-            {{
-              t('setup.merchantHint', {
-                list: Object.keys(runtimeConfig?.merchants || {}).join(', ') || 'vat_tu_my_loc',
-              })
-            }}
-          </div>
         </el-form-item>
       </el-form>
 

@@ -7,6 +7,11 @@
       "CLIENT_ID": "d9fd6b715fd00e4fb8e7",
       "ORG_NAME": "vat_tu_my_loc",
       "APP_NAME": "vat_tu_my_loc"
+    },
+    "test1": {
+      "CLIENT_ID": "test1",
+      "ORG_NAME": "vat_tu_my_loc",
+      "APP_NAME": "vat_tu_my_loc"
     }
   }
 }
