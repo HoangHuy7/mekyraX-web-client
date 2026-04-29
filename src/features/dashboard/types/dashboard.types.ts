@@ -1,6 +1,9 @@
 export interface DashboardStats {
   totalProducts: number;
-  activeProducts: number;
+  totalCustomers: number;
   totalRevenue: number;
-  pendingOrders: number;
+  totalDebt: number;
+  debtOrders: number;
+  todayRevenue: number;
+  todayOrders: number;
 }
