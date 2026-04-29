@@ -7,3 +7,15 @@ export interface DashboardStats {
   todayRevenue: number;
   todayOrders: number;
 }
+
+export interface DailySalesPoint {
+  date: string;
+  quantity: number;
+  total: number;
+}
+
+export interface MonthlySalesPoint {
+  month: string;
+  quantity: number;
+  total: number;
+}
