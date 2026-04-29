@@ -91,7 +91,10 @@ const logout = async () => {
   } catch (e) {
     console.error(e)
   } finally {
-    localStorage.clear()
+    // Xóa tất cả keys trừ app_setup_info (cấu hình merchant cần giữ lại)
+    const preserved = ['app_setup_info'];
+    const keysToRemove = Object.keys(localStorage).filter(k => !preserved.includes(k));
+    keysToRemove.forEach(k => localStorage.removeItem(k));
     router.push('/login')
   }
 }

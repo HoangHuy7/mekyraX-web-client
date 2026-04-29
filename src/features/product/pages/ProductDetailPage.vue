@@ -1,341 +1,310 @@
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue';
+import { reactive, ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { ArrowLeft, Edit, Delete } from '@element-plus/icons-vue';
+import { ArrowLeft, Edit, Plus, Box } from '@element-plus/icons-vue';
 import { productService } from '@/features/product/services/productService';
+import { inventoryService, type InventoryLog } from '@/features/product/services/inventoryService';
+import MoneyInput from '@/shared/components/common/MoneyInput.vue';
 import type { Product, ProductMutationInput } from '@/features/product/types/product.types';
 import { formatCurrencyVnd } from '@/shared/utils/formatters';
 
 const route = useRoute();
 const router = useRouter();
-const { t } = useI18n();
 
 const product = ref<Product | null>(null);
 const loading = ref(true);
-const editDialogVisible = ref(false);
-const saving = ref(false);
+const logs = ref<InventoryLog[]>([]);
+const logsLoading = ref(false);
 
+// Edit dialog
+const editVisible = ref(false);
+const saving = ref(false);
 const editForm = reactive({
-  name: '',
-  price: 0,
-  category: '',
-  unit: '',
-  costPrice: 0,
-  stockQuantity: 0,
-  barcode: '',
+  name: '', price: 0, category: '', unit: '', costPrice: 0, barcode: '',
 });
+
+// Import dialog
+const importVisible = ref(false);
+const importing = ref(false);
+const importForm = reactive({ quantity: 1, note: '' });
 
 onMounted(async () => {
   const id = String(route.params.id || '');
-
-  if (!id) {
-    router.push('/products');
-    return;
-  }
-
+  if (!id) { router.push('/products'); return; }
   loading.value = true;
   const data = await productService.getProductById(id);
-  
-  if (data) {
-    product.value = data;
-  } else {
-    router.push('/products');
-  }
+  if (!data) { router.push('/products'); return; }
+  product.value = data;
   loading.value = false;
+  fetchLogs();
 });
 
-const goBack = (): void => {
-  router.push('/products');
+const fetchLogs = async () => {
+  if (!product.value) return;
+  logsLoading.value = true;
+  logs.value = await inventoryService.fetchLogs(product.value.id, 30);
+  logsLoading.value = false;
 };
 
-const formatPrice = (price: number): string => {
-  return formatCurrencyVnd(price);
-};
+const fmt = (n: number) => formatCurrencyVnd(n);
+const fmtDate = (d?: string) => d ? new Date(d).toLocaleString('vi-VN', {
+  day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+}) : '—';
 
-const formatDate = (dateString?: string): string => {
-  if (!dateString) return t('common.notAvailable');
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
+const stockStatus = computed(() => {
+  const q = product.value?.stockQuantity ?? 0;
+  if (q <= 0) return { type: 'danger' as const, label: 'Hết hàng' };
+  if (q <= 5) return { type: 'warning' as const, label: 'Sắp hết' };
+  return { type: 'success' as const, label: 'Còn hàng' };
+});
+
+// ── Edit ──────────────────────────────────────────────────────────────────────
+const openEdit = () => {
+  if (!product.value) return;
+  Object.assign(editForm, {
+    name: product.value.name,
+    price: product.value.price,
+    category: product.value.category || '',
+    unit: product.value.unit || '',
+    costPrice: product.value.costPrice || 0,
+    barcode: product.value.barcode || '',
   });
+  editVisible.value = true;
 };
 
-const getStatusType = (status: string): string => {
-  return status === 'active' ? 'success' : 'info';
-};
-
-const handleDelete = async (): Promise<void> => {
-  if (!product.value) {
-    return;
-  }
-
-  try {
-    await ElMessageBox.confirm(
-      t('products.deleteConfirm', { name: product.value.name }),
-      t('common.confirmDelete'),
-      {
-        confirmButtonText: t('common.delete'),
-        cancelButtonText: t('common.cancel'),
-        type: 'warning',
-      }
-    );
-
-    await productService.deleteProduct(product.value.id);
-    ElMessage.success(t('products.productDeleted'));
-    router.push('/products');
-  } catch {
-    // User cancelled dialog.
-  }
-};
-
-const openEditDialog = (): void => {
-  if (!product.value) {
-    return;
-  }
-  editForm.name = product.value.name;
-  editForm.price = product.value.price;
-  editForm.category = product.value.category || '';
-  editForm.unit = product.value.unit || '';
-  editForm.costPrice = product.value.costPrice || 0;
-  editForm.stockQuantity = product.value.stockQuantity;
-  editForm.barcode = product.value.barcode || '';
-  editDialogVisible.value = true;
-};
-
-const submitEdit = async (): Promise<void> => {
-  if (!product.value) {
-    return;
-  }
-  if (!editForm.name.trim()) {
-    ElMessage.error(t('products.productNameRequired'));
-    return;
-  }
-  if (editForm.price < 0 || editForm.stockQuantity < 0) {
-    ElMessage.error(t('products.nonNegativePriceStock'));
-    return;
-  }
-
-  const input: ProductMutationInput = {
-    name: editForm.name.trim(),
-    price: editForm.price,
-    category: editForm.category.trim() || undefined,
-    unit: editForm.unit.trim() || undefined,
-    costPrice: editForm.costPrice,
-    stockQuantity: editForm.stockQuantity,
-    barcode: editForm.barcode.trim() || undefined,
-  };
-
+const submitEdit = async () => {
+  if (!product.value) return;
+  if (!editForm.name.trim()) { ElMessage.error('Tên sản phẩm không được để trống'); return; }
   saving.value = true;
   try {
-    const updated = await productService.updateProduct(product.value.id, input);
-    product.value = updated;
-    editDialogVisible.value = false;
-    ElMessage.success(t('products.productUpdated'));
-  } catch (error) {
-    ElMessage.error(error instanceof Error ? error.message : t('orders.updateFailed'));
+    const input: ProductMutationInput = {
+      name: editForm.name.trim(),
+      price: editForm.price,
+      category: editForm.category.trim() || undefined,
+      unit: editForm.unit.trim() || undefined,
+      costPrice: editForm.costPrice,
+      barcode: editForm.barcode.trim() || undefined,
+    };
+    product.value = await productService.updateProduct(product.value.id, input);
+    editVisible.value = false;
+    ElMessage.success('Đã cập nhật sản phẩm');
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Cập nhật thất bại');
   } finally {
     saving.value = false;
   }
 };
+
+// ── Import stock ──────────────────────────────────────────────────────────────
+const openImport = () => {
+  importForm.quantity = 1;
+  importForm.note = '';
+  importVisible.value = true;
+};
+
+const submitImport = async () => {
+  if (!product.value) return;
+  if (importForm.quantity <= 0) { ElMessage.error('Số lượng phải lớn hơn 0'); return; }
+  importing.value = true;
+  try {
+    await inventoryService.importStock(product.value.id, importForm.quantity, importForm.note || undefined);
+    product.value.stockQuantity += importForm.quantity;
+    importVisible.value = false;
+    ElMessage.success(`Đã nhập thêm ${importForm.quantity} ${product.value.unit || 'sản phẩm'}`);
+    fetchLogs();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : 'Nhập hàng thất bại');
+  } finally {
+    importing.value = false;
+  }
+};
+
+const logTypeLabel = (type: string) => ({ import: 'Nhập kho', sale: 'Bán hàng', adjust: 'Điều chỉnh' })[type] ?? type;
+const logTypeTag = (type: string): 'success' | 'danger' | 'warning' => ({ import: 'success' as const, sale: 'danger' as const, adjust: 'warning' as const })[type] ?? 'info' as any;
 </script>
 
 <template>
   <div class="product-detail-page">
+    <!-- Header -->
     <div class="page-header">
       <div class="header-left">
-        <el-button 
-          :icon="ArrowLeft" 
-          circle
-          @click="goBack"
-          class="back-btn"
-        />
-        <div>
-          <h1 class="page-title">{{ t('products.productDetail') }}</h1>
-          <p class="page-subtitle">{{ t('products.productInfo') }}</p>
-        </div>
+        <el-button :icon="ArrowLeft" circle @click="router.push('/products')" />
+        <span class="page-title">Chi tiết sản phẩm</span>
       </div>
       <div class="header-actions">
-        <el-button type="primary" :icon="Edit" @click="openEditDialog">
-          {{ t('common.edit') }}
-        </el-button>
-        <el-button type="danger" :icon="Delete" plain @click="handleDelete">
-          {{ t('common.delete') }}
-        </el-button>
+        <el-button :icon="Plus" type="success" @click="openImport">Nhập hàng</el-button>
+        <el-button :icon="Edit" @click="openEdit">Chỉnh sửa</el-button>
       </div>
     </div>
 
-    <el-card v-loading="loading" shadow="hover">
+    <div v-loading="loading">
       <template v-if="product">
-        <div class="product-header">
-          <div class="product-meta">{{ product.category || t('products.general') }} · {{ product.unit || t('products.unitFallback') }}</div>
-          <el-tag :type="getStatusType(product.status)" size="large">
-            {{ product.status }}
-          </el-tag>
-        </div>
+        <!-- Top info cards -->
+        <el-row :gutter="16" class="mb-16">
+          <el-col :span="16">
+            <el-card shadow="never" class="info-card">
+              <div class="product-name">{{ product.name }}</div>
+              <div class="product-meta">
+                <el-tag v-if="product.category" size="small" type="info">{{ product.category }}</el-tag>
+                <span v-if="product.unit" class="unit-text">· {{ product.unit }}</span>
+                <span v-if="product.barcode" class="barcode-text">· {{ product.barcode }}</span>
+              </div>
+              <el-divider style="margin: 12px 0" />
+              <el-row :gutter="24">
+                <el-col :span="8">
+                  <div class="stat-label">Giá bán</div>
+                  <div class="stat-value price-text">{{ fmt(product.price) }}</div>
+                </el-col>
+                <el-col :span="8">
+                  <div class="stat-label">Giá vốn</div>
+                  <div class="stat-value">{{ product.costPrice ? fmt(product.costPrice) : '—' }}</div>
+                </el-col>
+                <el-col :span="8">
+                  <div class="stat-label">Lợi nhuận/sp</div>
+                  <div class="stat-value profit-text">
+                    {{ product.costPrice ? fmt(product.price - product.costPrice) : '—' }}
+                  </div>
+                </el-col>
+              </el-row>
+            </el-card>
+          </el-col>
+          <el-col :span="8">
+            <el-card shadow="never" class="stock-card">
+              <div class="stock-icon"><el-icon size="32"><Box /></el-icon></div>
+              <div class="stock-number">{{ product.stockQuantity }}</div>
+              <div class="stock-unit">{{ product.unit || 'sản phẩm' }} trong kho</div>
+              <el-tag :type="stockStatus.type" class="mt-8">{{ stockStatus.label }}</el-tag>
+            </el-card>
+          </el-col>
+        </el-row>
 
-        <h2 class="product-name">{{ product.name }}</h2>
-
-        <el-divider />
-
-        <el-descriptions :column="2" border>
-          <el-descriptions-item :label="t('products.price')">
-            <span class="price">{{ formatPrice(product.price) }}</span>
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('products.costPrice')">
-            {{ product.costPrice !== undefined ? formatPrice(product.costPrice) : t('common.notAvailable') }}
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('products.stockQuantity')">
-            {{ product.stockQuantity }}
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('common.status')">
-            <el-tag :type="getStatusType(product.status)">
-              {{ product.status }}
-            </el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('products.barcode')">
-            {{ product.barcode || t('common.notAvailable') }}
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('products.imageUrl')">
-            {{ product.imgUrl || t('common.notAvailable') }}
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('products.updatedAt')">
-            {{ formatDate(product.updatedAt) }}
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('products.createdAt')">
-            {{ formatDate(product.createdAt) }}
-          </el-descriptions-item>
-          <el-descriptions-item :label="t('products.productId')">
-            {{ product.id }}
-          </el-descriptions-item>
-        </el-descriptions>
+        <!-- Inventory log -->
+        <el-card shadow="never">
+          <template #header>
+            <div class="log-header">
+              <span>Lịch sử nhập/xuất kho</span>
+              <el-button link :icon="ArrowLeft" style="" @click="fetchLogs">Làm mới</el-button>
+            </div>
+          </template>
+          <el-table :data="logs" v-loading="logsLoading" size="small" style="width:100%">
+            <el-table-column label="Loại" width="110">
+              <template #default="{ row }">
+                <el-tag :type="logTypeTag(row.type)" size="small">{{ logTypeLabel(row.type) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column label="Số lượng" width="100" align="center">
+              <template #default="{ row }">
+                <span :class="row.quantity > 0 ? 'qty-in' : 'qty-out'">
+                  {{ row.quantity > 0 ? '+' : '' }}{{ row.quantity }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="Ghi chú" min-width="160">
+              <template #default="{ row }">{{ row.note || '—' }}</template>
+            </el-table-column>
+            <el-table-column label="Thời gian" width="150">
+              <template #default="{ row }">
+                <span class="date-text">{{ fmtDate(row.createdAt) }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-if="!logsLoading && logs.length === 0" description="Chưa có lịch sử" :image-size="60" />
+        </el-card>
       </template>
+    </div>
 
-      <el-empty v-else :description="t('products.productNotFound')" />
-    </el-card>
-
-    <el-dialog v-model="editDialogVisible" :title="t('products.editProduct')" width="640px">
+    <!-- Edit Dialog -->
+    <el-dialog v-model="editVisible" title="Chỉnh sửa sản phẩm" width="560px">
       <el-form label-position="top">
-        <el-form-item :label="t('products.productName')" required>
+        <el-form-item label="Tên sản phẩm" required>
           <el-input v-model="editForm.name" />
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item :label="t('products.price')" required>
-              <el-input-number v-model="editForm.price" :min="0" :step="0.01" />
+            <el-form-item label="Giá bán">
+              <MoneyInput v-model="editForm.price" :min="0" style="width:100%" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item :label="t('products.costPrice')">
-              <el-input-number v-model="editForm.costPrice" :min="0" :step="0.01" />
+            <el-form-item label="Giá vốn">
+              <MoneyInput v-model="editForm.costPrice" :min="0" style="width:100%" />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item :label="t('products.category')">
+            <el-form-item label="Danh mục">
               <el-input v-model="editForm.category" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item :label="t('products.unit')">
+            <el-form-item label="Đơn vị tính">
               <el-input v-model="editForm.unit" />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item :label="t('products.stockQuantity')" required>
-              <el-input-number v-model="editForm.stockQuantity" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item :label="t('products.barcode')">
-              <el-input v-model="editForm.barcode" />
-            </el-form-item>
-          </el-col>
-        </el-row>
+        <el-form-item label="Mã vạch">
+          <el-input v-model="editForm.barcode" />
+        </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="editDialogVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="saving" @click="submitEdit">
-          {{ t('common.save') }}
-        </el-button>
+        <el-button @click="editVisible = false">Hủy</el-button>
+        <el-button type="primary" :loading="saving" @click="submitEdit">Lưu</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Import Dialog -->
+    <el-dialog v-model="importVisible" title="Nhập hàng vào kho" width="400px">
+      <el-descriptions :column="1" border size="small" class="mb-16">
+        <el-descriptions-item label="Sản phẩm">{{ product?.name }}</el-descriptions-item>
+        <el-descriptions-item label="Tồn kho hiện tại">{{ product?.stockQuantity }} {{ product?.unit }}</el-descriptions-item>
+      </el-descriptions>
+      <el-form label-position="top">
+        <el-form-item label="Số lượng nhập" required>
+          <el-input-number v-model="importForm.quantity" :min="1" controls-position="right" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="Ghi chú">
+          <el-input v-model="importForm.note" type="textarea" :rows="2" placeholder="Nhà cung cấp, lô hàng..." />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="importVisible = false">Hủy</el-button>
+        <el-button type="success" :loading="importing" @click="submitImport">Xác nhận nhập</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script lang="ts">
-export default {
-  name: 'ProductDetail',
-};
+export default { name: 'ProductDetail' };
 </script>
 
 <style scoped>
-.product-detail-page {
-  padding: 8px;
-}
+.product-detail-page { padding: 8px; }
+.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.header-left { display: flex; align-items: center; gap: 12px; }
+.page-title { font-size: 20px; font-weight: 600; }
+.header-actions { display: flex; gap: 10px; }
+.mb-16 { margin-bottom: 16px; }
+.mt-8 { margin-top: 8px; }
 
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
+.info-card { height: 100%; }
+.product-name { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+.product-meta { display: flex; align-items: center; gap: 8px; color: var(--el-text-color-secondary); font-size: 13px; }
+.unit-text, .barcode-text { font-size: 13px; }
+.stat-label { font-size: 12px; color: var(--el-text-color-secondary); margin-bottom: 4px; }
+.stat-value { font-size: 18px; font-weight: 600; }
+.price-text { color: var(--el-color-primary); }
+.profit-text { color: var(--el-color-success); }
 
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
+.stock-card { text-align: center; padding: 8px 0; }
+.stock-icon { color: var(--el-color-primary); margin-bottom: 8px; }
+.stock-number { font-size: 48px; font-weight: 700; line-height: 1; color: var(--el-text-color-primary); }
+.stock-unit { font-size: 13px; color: var(--el-text-color-secondary); margin-top: 4px; }
 
-.back-btn {
-  flex-shrink: 0;
-}
-
-.page-title {
-  margin: 0 0 4px;
-  font-size: 24px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-}
-
-.page-subtitle {
-  margin: 0;
-  color: var(--el-text-color-secondary);
-  font-size: 14px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 12px;
-}
-
-.product-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-}
-
-.product-meta {
-  font-size: 14px;
-  color: var(--el-text-color-secondary);
-}
-
-.product-name {
-  margin: 0 0 12px;
-  font-size: 28px;
-  font-weight: 600;
-  color: var(--el-text-color-primary);
-}
-
-.price {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--el-color-primary);
-}
+.log-header { display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+.qty-in { color: var(--el-color-success); font-weight: 600; }
+.qty-out { color: var(--el-color-danger); font-weight: 600; }
+.date-text { font-size: 12px; color: var(--el-text-color-secondary); }
 </style>
