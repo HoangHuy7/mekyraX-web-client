@@ -5,8 +5,25 @@ import {
   InfoFilled,
   UserFilled,
   Tickets,
+  Setting,
+  Avatar,
+  Files,
 } from '@element-plus/icons-vue';
+import type { Component } from 'vue';
 import type { MenuItem } from '@/shared/types/menu.types';
+import { adminService } from '@/features/admin/services/adminService';
+import type { MenuDef } from '@/features/admin/types/admin.types';
+
+// Map icon name string → Element Plus component
+const ICON_MAP: Record<string, Component> = {
+  HomeFilled, GoodsFilled, List, InfoFilled, UserFilled,
+  Tickets, Setting, Avatar, Files,
+};
+
+export function resolveIcon(name?: string): Component | undefined {
+  if (!name) return undefined;
+  return ICON_MAP[name];
+}
 
 export const menuConfig: MenuItem[] = [
   {
@@ -14,120 +31,101 @@ export const menuConfig: MenuItem[] = [
     label: 'menu.dashboard',
     path: '/dashboard',
     icon: HomeFilled,
-    meta: {
-      title: 'Dashboard',
-      keepAlive: true,
-    },
+    meta: { title: 'Dashboard', keepAlive: true },
   },
   {
     id: 'order-workspace',
     label: 'menu.orderWorkspace',
     path: '/order-workspace',
     icon: Tickets,
-    meta: {
-      title: 'Order Workspace',
-      keepAlive: true,
-    },
+    meta: { title: 'Order Workspace', keepAlive: true },
   },
   {
     id: 'products',
     label: 'menu.products',
     icon: GoodsFilled,
-    meta: {
-      title: 'Products',
-    },
+    meta: { title: 'Products' },
     children: [
-      {
-        id: 'product-list',
-        label: 'menu.productList',
-        path: '/products',
-        icon: List,
-        meta: {
-          title: 'Product List',
-          keepAlive: true,
-        },
-      },
-      {
-        id: 'product-detail',
-        label: 'menu.productDetail',
-        path: '/products/:id',
-        icon: InfoFilled,
-        meta: {
-          title: 'Product Detail',
-          keepAlive: true,
-          hidden: true,
-        },
-      },
+      { id: 'product-list', label: 'menu.productList', path: '/products', icon: List, meta: { title: 'Product List', keepAlive: true } },
+      { id: 'product-detail', label: 'menu.productDetail', path: '/products/:id', icon: InfoFilled, meta: { title: 'Product Detail', keepAlive: true, hidden: true } },
     ],
   },
   {
     id: 'customers',
     label: 'menu.customers',
     icon: UserFilled,
-    meta: {
-      title: 'Customers',
-    },
+    meta: { title: 'Customers' },
     children: [
-      {
-        id: 'customer-list',
-        label: 'menu.customerList',
-        path: '/customers',
-        icon: List,
-        meta: {
-          title: 'Customer List',
-          keepAlive: true,
-        },
-      },
-      {
-        id: 'customer-detail',
-        label: 'menu.customerDetail',
-        path: '/customers/:id',
-        icon: InfoFilled,
-        meta: {
-          title: 'Customer Detail',
-          keepAlive: true,
-          hidden: true,
-        },
-      },
+      { id: 'customer-list', label: 'menu.customerList', path: '/customers', icon: List, meta: { title: 'Customer List', keepAlive: true } },
+      { id: 'customer-detail', label: 'menu.customerDetail', path: '/customers/:id', icon: InfoFilled, meta: { title: 'Customer Detail', keepAlive: true, hidden: true } },
     ],
   },
   {
     id: 'orders',
     label: 'menu.orders',
     icon: Tickets,
-    meta: {
-      title: 'Orders',
-    },
+    meta: { title: 'Orders' },
     children: [
-      {
-        id: 'order-list',
-        label: 'menu.orderList',
-        path: '/orders',
-        icon: List,
-        meta: {
-          title: 'Order List',
-          keepAlive: true,
-        },
-      },
-      {
-        id: 'order-detail',
-        label: 'menu.orderDetail',
-        path: '/orders/:id',
-        icon: InfoFilled,
-        meta: {
-          title: 'Order Detail',
-          keepAlive: true,
-          hidden: true,
-        },
-      },
+      { id: 'order-list', label: 'menu.orderList', path: '/orders', icon: List, meta: { title: 'Order List', keepAlive: true } },
+      { id: 'order-detail', label: 'menu.orderDetail', path: '/orders/:id', icon: InfoFilled, meta: { title: 'Order Detail', keepAlive: true, hidden: true } },
     ],
   },
 ];
 
+// Build tree structure from flat MenuDef list returned by API
+export function buildMenuTree(flat: MenuDef[]): MenuItem[] {
+  const map = new Map<string, MenuItem>();
+
+  // First pass: create all items
+  for (const d of flat) {
+    map.set(d.id, {
+      id: d.id,
+      label: d.label,
+      path: d.path,
+      icon: resolveIcon(d.icon),
+      meta: {
+        title: d.label,
+        keepAlive: d.meta.keepAlive,
+        hidden: d.meta.hidden,
+        componentName: d.meta.componentName,
+      },
+    });
+  }
+
+  // Second pass: build tree
+  const roots: MenuItem[] = [];
+  for (const d of flat) {
+    const item = map.get(d.id)!;
+    if (d.parentId) {
+      const parent = map.get(d.parentId);
+      if (parent) {
+        if (!parent.children) parent.children = [];
+        parent.children.push(item);
+      }
+    } else {
+      roots.push(item);
+    }
+  }
+
+  // Sort children
+  const sortChildren = (items: MenuItem[]) => {
+    items.sort((a, b) => {
+      const da = flat.find((f) => f.id === a.id);
+      const db = flat.find((f) => f.id === b.id);
+      return (da?.sortOrder ?? 0) - (db?.sortOrder ?? 0);
+    });
+    for (const item of items) {
+      if (item.children) sortChildren(item.children);
+    }
+  };
+  sortChildren(roots);
+
+  return roots;
+}
+
 export const fetchMenuFromApi = async (): Promise<MenuItem[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(menuConfig);
-    }, 100);
-  });
+  const flat = await adminService.getMyMenus();
+  if (!flat.length) return menuConfig;
+  return buildMenuTree(flat);
 };
+

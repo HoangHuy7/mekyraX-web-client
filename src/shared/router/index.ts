@@ -131,6 +131,28 @@ const routes: RouteRecordRaw[] = [
           componentName: 'OrderDetailPage',
         },
       },
+      {
+        path: 'admin/users',
+        name: 'AdminUsers',
+        component: () => import('@/features/admin/pages/UserManagementPage.vue'),
+        meta: {
+          title: 'Quản lý Users',
+          icon: 'Avatar',
+          keepAlive: true,
+          componentName: 'UserManagementPage',
+        },
+      },
+      {
+        path: 'admin/groups',
+        name: 'AdminGroups',
+        component: () => import('@/features/admin/pages/GroupManagementPage.vue'),
+        meta: {
+          title: 'Quản lý Groups',
+          icon: 'Files',
+          keepAlive: true,
+          componentName: 'GroupManagementPage',
+        },
+      },
     ],
   },
 ];

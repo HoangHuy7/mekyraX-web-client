@@ -61,7 +61,7 @@ export const useMenuStore = defineStore('menu', () => {
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load menus';
-      menus.value = menuConfig;
+      menus.value = menuConfig; // fallback to hardcoded
     } finally {
       loading.value = false;
     }

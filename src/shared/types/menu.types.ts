@@ -11,6 +11,7 @@ export interface MenuItem {
     keepAlive?: boolean;
     hidden?: boolean;
     permissions?: string[];
+    componentName?: string;
   };
 }
 
