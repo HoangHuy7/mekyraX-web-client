@@ -96,6 +96,22 @@ const DELETE_ORDER_MUTATION = gql`
   }
 `;
 
+const PRINT_REPORT_MUTATION = gql`
+  mutation PrintReport($input: PrintReportInput!) {
+    printReport(input: $input) {
+      data
+      filename
+    }
+  }
+`;
+
+interface PrintReportMutationResponse {
+  printReport: {
+    data: string;
+    filename: string;
+  };
+}
+
 interface OrdersQueryResponse {
   orders: {
     data: GraphQLOrder[];
@@ -211,5 +227,22 @@ export const orderService = {
   async deleteOrder(id: string): Promise<boolean> {
     const data = await runMutation<OrderMutationResponse>(DELETE_ORDER_MUTATION, { id });
     return Boolean(data.deleteOrder);
+  },
+
+  async printOrder(orderId: string): Promise<Blob> {
+    const data = await runMutation<PrintReportMutationResponse>(PRINT_REPORT_MUTATION, {
+      input: {
+        report_id: 'order',
+        params: JSON.stringify({ order_id: orderId }),
+      },
+    });
+
+    const base64 = data.printReport.data;
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new Blob([bytes], { type: 'application/pdf' });
   },
 };
