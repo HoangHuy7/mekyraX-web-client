@@ -6,6 +6,8 @@ import { Goods, Check, Money, List, Plus, Document, User } from '@element-plus/i
 import type { DashboardStats } from '@/features/dashboard/types/dashboard.types';
 import { formatCurrencyVnd } from '@/shared/utils/formatters';
 
+defineOptions({ name: 'Dashboard' });
+
 const router = useRouter();
 const { t } = useI18n();
 

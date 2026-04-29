@@ -51,6 +51,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Dashboard',
           icon: 'HomeFilled',
           keepAlive: true,
+          componentName: 'Dashboard',
         },
       },
       {
@@ -61,6 +62,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Order Workspace',
           icon: 'Tickets',
           keepAlive: true,
+          componentName: 'OrderWorkspacePage',
         },
       },
       {
@@ -71,6 +73,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Products',
           icon: 'GoodsFilled',
           keepAlive: true,
+          componentName: 'ProductListPage',
         },
       },
       {
@@ -81,6 +84,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Product Detail',
           icon: 'GoodsFilled',
           keepAlive: true,
+          componentName: 'ProductDetail',
         },
       },
       {
@@ -91,6 +95,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Customers',
           icon: 'UserFilled',
           keepAlive: true,
+          componentName: 'CustomerListPage',
         },
       },
       {
@@ -101,6 +106,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Customer Detail',
           icon: 'UserFilled',
           keepAlive: true,
+          componentName: 'CustomerDetailPage',
         },
       },
       {
@@ -111,6 +117,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Orders',
           icon: 'Tickets',
           keepAlive: true,
+          componentName: 'OrderListPage',
         },
       },
       {
@@ -121,6 +128,7 @@ const routes: RouteRecordRaw[] = [
           title: 'Order Detail',
           icon: 'Tickets',
           keepAlive: true,
+          componentName: 'OrderDetailPage',
         },
       },
     ],

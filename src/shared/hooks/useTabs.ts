@@ -20,6 +20,7 @@ export function useTabs(): void {
       path,
       title: (meta.title as string) || routeName,
       name: routeName,
+      componentName: (meta.componentName as string) || routeName,
       closable: path !== '/dashboard',
     };
 

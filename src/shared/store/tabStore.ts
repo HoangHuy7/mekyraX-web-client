@@ -15,7 +15,9 @@ export const useTabStore = defineStore('tab', () => {
   const activeTabPath = ref<string>(DASHBOARD_PATH);
 
   const cachedViews = computed<string[]>(() => {
-    return tabs.value.map((tab) => tab.name);
+    return tabs.value
+      .map((tab) => tab.componentName || tab.name)
+      .filter(Boolean);
   });
 
   const hasTab = (path: string): boolean => {
