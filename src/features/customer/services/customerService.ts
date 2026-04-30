@@ -13,8 +13,13 @@ const CUSTOMER_FRAGMENT = gql`
     name
     phone
     address
+    id_card
+    email
+    img_url
+    note
     total_debt
     created_at
+    updated_at
   }
 `;
 
@@ -104,6 +109,10 @@ const toCustomerInput = (input: CustomerMutationInput) => ({
   name: input.name,
   phone: input.phone || null,
   address: input.address || null,
+  id_card: input.idCard || null,
+  email: input.email || null,
+  img_url: input.imgUrl || null,
+  note: input.note || null,
 });
 
 export const customerService = {
@@ -119,6 +128,9 @@ export const customerService = {
       filter: {
         search: filter?.search || null,
         phone: filter?.phone || null,
+        email: filter?.email || null,
+        id_card: filter?.idCard || null,
+        has_debt: filter?.hasDebt ?? null,
       },
       pagination: {
         offset,
@@ -164,6 +176,10 @@ export const customerService = {
         ...(input.name !== undefined ? { name: input.name } : {}),
         ...(input.phone !== undefined ? { phone: input.phone || null } : {}),
         ...(input.address !== undefined ? { address: input.address || null } : {}),
+        ...(input.idCard !== undefined ? { id_card: input.idCard || null } : {}),
+        ...(input.email !== undefined ? { email: input.email || null } : {}),
+        ...(input.imgUrl !== undefined ? { img_url: input.imgUrl || null } : {}),
+        ...(input.note !== undefined ? { note: input.note || null } : {}),
       },
     });
     if (!data.updateCustomer) {

@@ -31,8 +31,13 @@ export interface GraphQLCustomer {
   name: string;
   phone?: string | null;
   address?: string | null;
+  id_card?: string | null;
+  email?: string | null;
+  img_url?: string | null;
+  note?: string | null;
   total_debt: string | number;
   created_at?: string | null;
+  updated_at?: string | null;
 }
 
 export interface GraphQLOrderItem {
@@ -79,8 +84,13 @@ export interface CustomerDTO {
   name: string;
   phone?: string;
   address?: string;
+  idCard?: string;
+  email?: string;
+  imgUrl?: string;
+  note?: string;
   totalDebt: number;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface OrderItemDTO {
@@ -151,8 +161,13 @@ export const mapCustomer = (customer: GraphQLCustomer): CustomerDTO => ({
   name: customer.name,
   phone: toStringOrUndefined(customer.phone ?? undefined),
   address: toStringOrUndefined(customer.address ?? undefined),
+  idCard: toStringOrUndefined(customer.id_card ?? undefined),
+  email: toStringOrUndefined(customer.email ?? undefined),
+  imgUrl: toStringOrUndefined(customer.img_url ?? undefined),
+  note: toStringOrUndefined(customer.note ?? undefined),
   totalDebt: toNumber(customer.total_debt),
   createdAt: toStringOrUndefined(customer.created_at ?? undefined),
+  updatedAt: toStringOrUndefined(customer.updated_at ?? undefined),
 });
 
 export const mapOrderItem = (item: GraphQLOrderItem): OrderItemDTO => ({

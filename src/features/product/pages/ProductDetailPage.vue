@@ -1,21 +1,26 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
-import { ArrowLeft, Edit, Plus, Box } from '@element-plus/icons-vue';
+import { Edit, Plus, Box } from '@element-plus/icons-vue';
 import { productService } from '@/features/product/services/productService';
 import { inventoryService, type InventoryLog } from '@/features/product/services/inventoryService';
 import MoneyInput from '@/shared/components/common/MoneyInput.vue';
+import AppDetailHeader from '@/shared/components/common/AppDetailHeader.vue';
+import AppLogsPanel from '@/shared/components/common/AppLogsPanel.vue';
 import type { Product, ProductMutationInput } from '@/features/product/types/product.types';
 import { formatCurrencyVnd } from '@/shared/utils/formatters';
 
 const route = useRoute();
 const router = useRouter();
+const { t } = useI18n();
 
 const product = ref<Product | null>(null);
 const loading = ref(true);
 const logs = ref<InventoryLog[]>([]);
 const logsLoading = ref(false);
+const tab = ref<'inventory' | 'audit'>('inventory');
 
 // Edit dialog
 const editVisible = ref(false);
@@ -127,16 +132,16 @@ const logTypeTag = (type: string): 'success' | 'danger' | 'warning' => ({ import
 <template>
   <div class="product-detail-page">
     <!-- Header -->
-    <div class="page-header">
-      <div class="header-left">
-        <el-button :icon="ArrowLeft" circle @click="router.push('/products')" />
-        <span class="page-title">Chi tiết sản phẩm</span>
-      </div>
-      <div class="header-actions">
-        <el-button :icon="Plus" type="success" @click="openImport">Nhập hàng</el-button>
-        <el-button :icon="Edit" @click="openEdit">Chỉnh sửa</el-button>
-      </div>
-    </div>
+    <AppDetailHeader
+      :title="product?.name || t('products.productDetail')"
+      :subtitle="product?.category || product?.barcode || t('products.productInfo')"
+      @back="router.push('/products')"
+    >
+      <template #actions>
+        <el-button :icon="Plus" type="success" @click="openImport">{{ t('products.importStock') || 'Nhập hàng' }}</el-button>
+        <el-button :icon="Edit" @click="openEdit">{{ t('common.edit') }}</el-button>
+      </template>
+    </AppDetailHeader>
 
     <div v-loading="loading">
       <template v-if="product">
@@ -179,37 +184,41 @@ const logTypeTag = (type: string): 'success' | 'danger' | 'warning' => ({ import
           </el-col>
         </el-row>
 
-        <!-- Inventory log -->
+        <!-- Logs tabs -->
         <el-card shadow="never">
-          <template #header>
-            <div class="log-header">
-              <span>Lịch sử nhập/xuất kho</span>
-              <el-button link :icon="ArrowLeft" style="" @click="fetchLogs">Làm mới</el-button>
-            </div>
-          </template>
-          <el-table :data="logs" v-loading="logsLoading" size="small" style="width:100%">
-            <el-table-column label="Loại" width="110">
-              <template #default="{ row }">
-                <el-tag :type="logTypeTag(row.type)" size="small">{{ logTypeLabel(row.type) }}</el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column label="Số lượng" width="100" align="center">
-              <template #default="{ row }">
-                <span :class="row.quantity > 0 ? 'qty-in' : 'qty-out'">
-                  {{ row.quantity > 0 ? '+' : '' }}{{ row.quantity }}
-                </span>
-              </template>
-            </el-table-column>
-            <el-table-column label="Ghi chú" min-width="160">
-              <template #default="{ row }">{{ row.note || '—' }}</template>
-            </el-table-column>
-            <el-table-column label="Thời gian" width="150">
-              <template #default="{ row }">
-                <span class="date-text">{{ fmtDate(row.createdAt) }}</span>
-              </template>
-            </el-table-column>
-          </el-table>
-          <el-empty v-if="!logsLoading && logs.length === 0" description="Chưa có lịch sử" :image-size="60" />
+          <el-tabs v-model="tab">
+            <el-tab-pane :label="t('products.inventoryHistory') || 'Lịch sử kho'" name="inventory">
+              <div class="log-actions">
+                <el-button link @click="fetchLogs">{{ t('common.reset') }}</el-button>
+              </div>
+              <el-table :data="logs" v-loading="logsLoading" size="small" style="width:100%">
+                <el-table-column label="Loại" width="110">
+                  <template #default="{ row }">
+                    <el-tag :type="logTypeTag(row.type)" size="small">{{ logTypeLabel(row.type) }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="Số lượng" width="100" align="center">
+                  <template #default="{ row }">
+                    <span :class="row.quantity > 0 ? 'qty-in' : 'qty-out'">
+                      {{ row.quantity > 0 ? '+' : '' }}{{ row.quantity }}
+                    </span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="Ghi chú" min-width="160">
+                  <template #default="{ row }">{{ row.note || '—' }}</template>
+                </el-table-column>
+                <el-table-column label="Thời gian" width="150">
+                  <template #default="{ row }">
+                    <span class="date-text">{{ fmtDate(row.createdAt) }}</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-if="!logsLoading && logs.length === 0" description="Chưa có lịch sử" :image-size="60" />
+            </el-tab-pane>
+            <el-tab-pane :label="t('logs.title')" name="audit" lazy>
+              <AppLogsPanel entity-type="product" :entity-id="product.id" />
+            </el-tab-pane>
+          </el-tabs>
         </el-card>
       </template>
     </div>

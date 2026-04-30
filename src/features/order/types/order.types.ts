@@ -27,6 +27,8 @@ export interface Order {
 export interface OrderFilter {
   status?: string;
   customerId?: string;
+  fromDate?: string;
+  toDate?: string;
 }
 
 export interface CreateOrderItemInput {

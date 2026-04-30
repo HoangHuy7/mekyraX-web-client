@@ -25,6 +25,8 @@ const printingOrderId = ref<string | null>(null);
 const customerOptions = ref<Customer[]>([]);
 const productOptions = ref<Product[]>([]);
 const recentOrders = ref<Order[]>([]);
+const recentPage = ref(1);
+const recentTotal = ref(0);
 
 // Đơn vừa tạo - dùng để show success state
 const createdOrder = ref<Order | null>(null);
@@ -94,8 +96,12 @@ const loadMeta = async () => {
 const loadRecentOrders = async () => {
   loadingRecent.value = true;
   try {
-    const result = await orderService.fetchOrders(undefined, { page: 1, pageSize: 10 });
+    const result = await orderService.fetchOrders(undefined, {
+      page: recentPage.value,
+      pageSize: 10,
+    });
     recentOrders.value = result.items;
+    recentTotal.value = result.pageInfo.total;
   } finally {
     loadingRecent.value = false;
   }
@@ -471,6 +477,18 @@ const viewOrder = (id: string) => router.push(`/orders/${id}`);
               </div>
             </div>
           </div>
+
+          <el-pagination
+            v-if="recentTotal > 10"
+            small
+            background
+            layout="prev, pager, next"
+            :total="recentTotal"
+            :page-size="10"
+            v-model:current-page="recentPage"
+            @current-change="loadRecentOrders"
+            class="recent-pager"
+          />
         </el-card>
       </el-col>
     </el-row>

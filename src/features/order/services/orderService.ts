@@ -175,6 +175,8 @@ export const orderService = {
       filter: {
         status: filter?.status || null,
         customer_id: filter?.customerId || null,
+        from_date: filter?.fromDate || null,
+        to_date: filter?.toDate || null,
       },
       pagination: {
         offset,

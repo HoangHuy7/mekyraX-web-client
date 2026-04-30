@@ -1,137 +1,185 @@
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, reactive, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { Refresh, View } from '@element-plus/icons-vue';
+import { View } from '@element-plus/icons-vue';
 import { useOrderStore } from '@/features/order/store/orderStore';
-import AppPagination from '@/shared/components/common/AppPagination.vue';
+import { customerService } from '@/features/customer/services/customerService';
+import type { Customer } from '@/features/customer/types/customer.types';
+import AppDataTable, { type AppDataTableColumn } from '@/shared/components/common/AppDataTable.vue';
+import AppFilterBar from '@/shared/components/common/AppFilterBar.vue';
 import { formatCurrencyVnd } from '@/shared/utils/formatters';
 
 const orderStore = useOrderStore();
 const router = useRouter();
 const { t } = useI18n();
-const statusFilter = ref('');
+
+const filterForm = reactive({
+  status: '',
+  customerId: '' as string | '',
+  dateRange: [] as string[],
+});
+
 const currentPage = ref(1);
 const pageSize = ref(20);
+const sort = ref<{ prop: string; order: 'ascending' | 'descending' } | undefined>({
+  prop: 'createdAt',
+  order: 'descending',
+});
+const customers = ref<Customer[]>([]);
 
-const fetchOrdersPage = async (): Promise<void> => {
-  await orderStore.fetchOrders({ page: currentPage.value, pageSize: pageSize.value });
+const fetchPage = (): Promise<void> =>
+  orderStore.fetchOrders({ page: currentPage.value, pageSize: pageSize.value });
+
+const loadCustomers = async (): Promise<void> => {
+  const r = await customerService.fetchCustomers({}, { page: 1, pageSize: 100 });
+  customers.value = r.items;
 };
 
-onMounted(() => { fetchOrdersPage(); });
+onMounted(() => {
+  orderStore.setFilter({});
+  fetchPage();
+  loadCustomers();
+});
 
-const applyFilter = (): void => {
-  orderStore.setFilter({ status: statusFilter.value || undefined });
-  currentPage.value === 1 ? fetchOrdersPage() : (currentPage.value = 1);
+watch([currentPage, pageSize], fetchPage);
+
+const apply = (): void => {
+  orderStore.setFilter({
+    status: filterForm.status || undefined,
+    customerId: filterForm.customerId || undefined,
+    fromDate: filterForm.dateRange?.[0] || undefined,
+    toDate: filterForm.dateRange?.[1] || undefined,
+  });
+  if (currentPage.value === 1) fetchPage();
+  else currentPage.value = 1;
 };
 
-const resetFilter = (): void => {
-  statusFilter.value = '';
+const reset = (): void => {
+  filterForm.status = '';
+  filterForm.customerId = '';
+  filterForm.dateRange = [];
   orderStore.resetFilter();
-  currentPage.value === 1 ? fetchOrdersPage() : (currentPage.value = 1);
+  if (currentPage.value === 1) fetchPage();
+  else currentPage.value = 1;
 };
 
-const viewOrder = (id: string): void => { router.push(`/orders/${id}`); };
+const view = (id: string): void => {
+  router.push(`/orders/${id}`);
+};
 
-const getStatusType = (status: string): string => {
-  if (status === 'paid') return 'success';
-  if (status === 'debt') return 'danger';
-  if (status === 'delivery') return 'primary';
+const onSort = (e: { prop: string; order: 'ascending' | 'descending' | null }): void => {
+  if (e.order) sort.value = { prop: e.prop, order: e.order };
+  else sort.value = undefined;
+};
+
+const statusType = (s: string): 'success' | 'danger' | 'primary' | 'warning' | 'info' => {
+  if (s === 'paid') return 'success';
+  if (s === 'debt') return 'danger';
+  if (s === 'delivery') return 'primary';
+  if (s === 'pending') return 'warning';
   return 'info';
 };
 
-const getStatusLabel = (status: string): string => {
-  if (status === 'paid') return 'Đã thanh toán';
-  if (status === 'debt') return 'Còn nợ';
-  if (status === 'delivery') return 'Giao hàng';
-  return status;
+const statusLabel = (s: string): string => {
+  const map: Record<string, string> = {
+    paid: t('orders.paid'),
+    debt: t('orders.debt'),
+    delivery: t('orders.delivery'),
+    pending: t('orders.pending'),
+    cancelled: t('orders.cancelled'),
+  };
+  return map[s] || s;
 };
 
-const formatDate = (d?: string): string => {
-  if (!d) return '—';
-  return new Date(d).toLocaleString('vi-VN', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  });
-};
+const fmtDate = (d?: string): string => (d
+  ? new Date(d).toLocaleString('vi-VN', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    })
+  : '—');
 
-watch([currentPage, pageSize], () => { fetchOrdersPage(); });
+const columns: AppDataTableColumn[] = [
+  { prop: 'code', label: t('orders.code'), width: 130, slot: 'code' },
+  { prop: 'customer', label: t('orders.customer'), minWidth: 160, slot: 'customer' },
+  { prop: 'totalAmount', label: t('orders.total'), width: 140, sortable: true, slot: 'totalAmount', align: 'right' },
+  { prop: 'paidAmount', label: t('orders.paidAmount'), width: 130, sortable: true, slot: 'paidAmount', align: 'right' },
+  { prop: 'debtAmount', label: t('orders.debtAmount'), width: 130, sortable: true, slot: 'debtAmount', align: 'right' },
+  { prop: 'status', label: t('common.status'), width: 130, slot: 'status', align: 'center' },
+  { prop: 'createdAt', label: t('orders.createdAt'), width: 170, sortable: true, slot: 'createdAt' },
+  { prop: 'actions', label: '', width: 70, slot: 'actions', fixed: 'right', align: 'center' },
+];
 </script>
 
 <template>
   <div class="order-list-page">
     <div class="page-header">
-      <div>
-        <h1 class="page-title">{{ t('orders.title') }}</h1>
-        <p class="page-subtitle">Danh sách tất cả đơn hàng</p>
-      </div>
+      <h1 class="page-title">{{ t('orders.title') }}</h1>
+      <p class="page-subtitle">{{ t('orders.subtitle') }}</p>
     </div>
 
-    <el-card shadow="never" class="filter-card">
-      <div class="filter-row">
-        <el-select v-model="statusFilter" placeholder="Lọc theo trạng thái" clearable style="width:180px" @change="applyFilter">
-          <el-option label="Đã thanh toán" value="paid" />
-          <el-option label="Còn nợ" value="debt" />
-          <el-option label="Giao hàng" value="delivery" />
-        </el-select>
-        <el-button :icon="Refresh" @click="resetFilter">Reset</el-button>
-        <span class="total-hint">Tổng: <b>{{ orderStore.pageInfo.total }}</b> đơn</span>
-      </div>
-    </el-card>
-
-    <el-card shadow="never" v-loading="orderStore.loading">
-      <el-table :data="orderStore.filteredOrders" stripe style="width:100%" :row-class-name="() => 'order-row'">
-        <el-table-column prop="code" label="Mã đơn" width="130">
-          <template #default="{ row }">
-            <b>{{ row.code || row.id.slice(0,8) }}</b>
-          </template>
-        </el-table-column>
-        <el-table-column label="Khách hàng" min-width="150">
-          <template #default="{ row }">
-            {{ row.customer?.name || 'Khách lẻ' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="Tổng tiền" width="120" align="right">
-          <template #default="{ row }">
-            {{ formatCurrencyVnd(row.totalAmount) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="Đã trả" width="120" align="right">
-          <template #default="{ row }">
-            <span class="paid-text">{{ formatCurrencyVnd(row.paidAmount) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="Còn nợ" width="120" align="right">
-          <template #default="{ row }">
-            <span v-if="row.debtAmount > 0" class="debt-text">{{ formatCurrencyVnd(row.debtAmount) }}</span>
-            <span v-else class="paid-text">—</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="Trạng thái" width="130" align="center">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small">
-              {{ getStatusLabel(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="Thời gian tạo" width="150">
-          <template #default="{ row }">
-            <span class="date-text">{{ formatDate(row.createdAt) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="" width="80" align="center" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" :icon="View" @click="viewOrder(row.id)" />
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <AppPagination
-        v-model:current-page="currentPage"
-        v-model:page-size="pageSize"
-        :total="orderStore.pageInfo.total"
+    <AppFilterBar :total="orderStore.pageInfo.total" @apply="apply" @reset="reset">
+      <el-select v-model="filterForm.status" :placeholder="t('orders.filterByStatus')" clearable style="width:170px">
+        <el-option :label="t('orders.paid')" value="paid" />
+        <el-option :label="t('orders.debt')" value="debt" />
+        <el-option :label="t('orders.delivery')" value="delivery" />
+        <el-option :label="t('orders.pending')" value="pending" />
+        <el-option :label="t('orders.cancelled')" value="cancelled" />
+      </el-select>
+      <el-select
+        v-model="filterForm.customerId"
+        :placeholder="t('orders.filterByCustomer')"
+        filterable clearable
+        style="width:220px"
+      >
+        <el-option v-for="c in customers" :key="c.id" :label="c.name" :value="c.id" />
+      </el-select>
+      <el-date-picker
+        v-model="filterForm.dateRange"
+        type="daterange"
+        :range-separator="t('common.to')"
+        :start-placeholder="t('common.from')"
+        :end-placeholder="t('common.to')"
+        value-format="YYYY-MM-DDTHH:mm:ssZ"
+        style="width:280px"
       />
-    </el-card>
+    </AppFilterBar>
+
+    <AppDataTable
+      :data="orderStore.orders"
+      :columns="columns"
+      :loading="orderStore.loading"
+      :total="orderStore.pageInfo.total"
+      v-model:current-page="currentPage"
+      v-model:page-size="pageSize"
+      :default-sort="sort"
+      @sort-change="onSort"
+      @row-click="(row) => view(row.id)"
+    >
+      <template #code="{ row }">
+        <b>{{ row.code || row.id.slice(0, 8) }}</b>
+      </template>
+      <template #customer="{ row }">
+        {{ row.customer?.name || t('orders.walkInCustomer') }}
+      </template>
+      <template #totalAmount="{ row }">{{ formatCurrencyVnd(row.totalAmount) }}</template>
+      <template #paidAmount="{ row }">
+        <span class="paid">{{ formatCurrencyVnd(row.paidAmount) }}</span>
+      </template>
+      <template #debtAmount="{ row }">
+        <span v-if="row.debtAmount > 0" class="debt">{{ formatCurrencyVnd(row.debtAmount) }}</span>
+        <span v-else class="muted">—</span>
+      </template>
+      <template #status="{ row }">
+        <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+      </template>
+      <template #createdAt="{ row }">
+        <span class="muted">{{ fmtDate(row.createdAt) }}</span>
+      </template>
+      <template #actions="{ row }">
+        <el-button link type="primary" :icon="View" @click.stop="view(row.id)" />
+      </template>
+    </AppDataTable>
   </div>
 </template>
 
@@ -141,14 +189,10 @@ export default { name: 'OrderListPage' };
 
 <style scoped>
 .order-list-page { padding: 8px; }
-.page-header { margin-bottom: 20px; }
+.page-header { margin-bottom: 16px; }
 .page-title { margin: 0 0 4px; font-size: 24px; font-weight: 600; }
-.page-subtitle { margin: 0; color: var(--el-text-color-secondary); font-size: 14px; }
-.filter-card { margin-bottom: 16px; }
-.filter-row { display: flex; gap: 12px; align-items: center; }
-.total-hint { margin-left: auto; font-size: 13px; color: var(--el-text-color-secondary); }
-.paid-text { color: var(--el-color-success); font-weight: 500; }
-.debt-text { color: var(--el-color-danger); font-weight: 600; }
-.date-text { font-size: 12px; color: var(--el-text-color-secondary); }
-:deep(.order-row:hover) { cursor: pointer; }
+.page-subtitle { margin: 0; color: var(--el-text-color-secondary); }
+.paid { color: var(--el-color-success); font-weight: 500; }
+.debt { color: var(--el-color-danger); font-weight: 600; }
+.muted { font-size: 12px; color: var(--el-text-color-secondary); }
 </style>

@@ -37,7 +37,9 @@ const handleClick = (): void => {
         <el-icon v-if="item.icon">
           <component :is="item.icon" />
         </el-icon>
-        <span>{{ t(item.label) }}</span>
+        <el-tooltip :content="t(item.label)" placement="right" :disabled="!collapse">
+          <span class="menu-title">{{ t(item.label) }}</span>
+        </el-tooltip>
       </template>
       <MenuItem
         v-for="child in item.children"
@@ -57,7 +59,9 @@ const handleClick = (): void => {
         <component :is="item.icon" />
       </el-icon>
       <template #title>
-        <span>{{ t(item.label) }}</span>
+        <el-tooltip :content="t(item.label)" placement="right" :disabled="!collapse">
+          <span class="menu-title">{{ t(item.label) }}</span>
+        </el-tooltip>
       </template>
     </el-menu-item>
   </template>
@@ -68,3 +72,14 @@ export default {
   name: 'MenuItem',
 };
 </script>
+
+<style scoped>
+.menu-title {
+  display: inline-block;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+</style>
