@@ -28,6 +28,12 @@ const addUserDialog = ref(false);
 const addUserForm = ref({ username: '', password: '', displayName: '', email: '', groupId: '' });
 const addingUser = ref(false);
 
+// Reset password dialog
+const resetPwdDialog = ref(false);
+const resetPwdUser = ref<AppUser | null>(null);
+const resetPwdForm = ref({ newPassword: '', confirmPassword: '' });
+const resettingPwd = ref(false);
+
 onMounted(async () => {
   await Promise.all([fetchUsers(), fetchGroups()]);
 });
@@ -145,6 +151,35 @@ function handleSearch() {
 function handleCommand(cmd: string, row: AppUser) {
   if (cmd === 'assign') openAssign(row);
   else if (cmd === 'toggle') toggleActive(row);
+  else if (cmd === 'reset_pwd') openResetPwd(row);
+}
+
+function openResetPwd(user: AppUser) {
+  resetPwdUser.value = user;
+  resetPwdForm.value = { newPassword: '', confirmPassword: '' };
+  resetPwdDialog.value = true;
+}
+
+async function confirmResetPwd() {
+  if (!resetPwdUser.value) return;
+  if (!resetPwdForm.value.newPassword.trim()) {
+    ElMessage.warning(t('admin.users.passwordRequired'));
+    return;
+  }
+  if (resetPwdForm.value.newPassword !== resetPwdForm.value.confirmPassword) {
+    ElMessage.warning(t('admin.changePassword.mismatch'));
+    return;
+  }
+  resettingPwd.value = true;
+  try {
+    await adminService.resetUserPassword(resetPwdUser.value.id, resetPwdForm.value.newPassword.trim());
+    ElMessage.success(t('admin.users.resetPwdSuccess'));
+    resetPwdDialog.value = false;
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('admin.users.resetPwdFailed'));
+  } finally {
+    resettingPwd.value = false;
+  }
 }
 </script>
 
@@ -215,6 +250,7 @@ function handleCommand(cmd: string, row: AppUser) {
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item command="assign">{{ t('admin.users.assignGroup') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="!row.isSystem" command="reset_pwd">{{ t('admin.users.resetPwd') }}</el-dropdown-item>
                   <el-dropdown-item v-if="!row.isSystem" command="toggle" :divided="true">
                     {{ row.isActive ? t('admin.users.deactivate') : t('admin.users.activate') }}
                   </el-dropdown-item>
@@ -278,6 +314,27 @@ function handleCommand(cmd: string, row: AppUser) {
         <el-button @click="addUserDialog = false">{{ t('admin.users.cancel') }}</el-button>
         <el-button type="primary" :loading="addingUser" @click="addUser">
           {{ t('admin.groups.create') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Reset password dialog -->
+    <el-dialog v-model="resetPwdDialog" :title="t('admin.users.resetPwdTitle')" width="400px">
+      <div v-if="resetPwdUser" style="margin-bottom:12px">
+        User: <strong>{{ resetPwdUser.displayName || resetPwdUser.username }}</strong>
+      </div>
+      <el-form :model="resetPwdForm" label-width="130px">
+        <el-form-item :label="t('admin.users.passwordLabel')" required>
+          <el-input v-model="resetPwdForm.newPassword" type="password" show-password />
+        </el-form-item>
+        <el-form-item :label="t('admin.changePassword.confirmPassword')" required>
+          <el-input v-model="resetPwdForm.confirmPassword" type="password" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="resetPwdDialog = false">{{ t('admin.users.cancel') }}</el-button>
+        <el-button type="warning" :loading="resettingPwd" @click="confirmResetPwd">
+          {{ t('admin.users.resetPwd') }}
         </el-button>
       </template>
     </el-dialog>

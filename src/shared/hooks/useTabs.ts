@@ -12,16 +12,14 @@ export function useTabs(): void {
     const { path, meta, name } = route;
     const routeName = name as string;
 
-    if (!routeName) {
-      return;
-    }
+    if (!routeName) return;
 
     const tab: TabItem = {
       path,
       title: (meta.title as string) || routeName,
       name: routeName,
       componentName: (meta.componentName as string) || routeName,
-      closable: path !== '/dashboard',
+      closable: true, // all tabs are closable
     };
 
     tabStore.addTab(tab);

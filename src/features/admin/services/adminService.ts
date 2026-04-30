@@ -83,6 +83,12 @@ const DEACTIVATE_USER_MUTATION = gql`
   mutation DeactivateUser($user_id: String!) { deactivateUser(user_id: $user_id) }
 `;
 
+const RESET_USER_PASSWORD_MUTATION = gql`
+  mutation ResetUserPassword($user_id: String!, $new_password: String!) {
+    resetUserPassword(user_id: $user_id, new_password: $new_password)
+  }
+`;
+
 const CREATE_GROUP_MUTATION = gql`
   ${GROUP_FRAGMENT}
   mutation CreateGroup($input: CreateGroupInput!) { createGroup(input: $input) { ...GroupFields } }
@@ -218,6 +224,14 @@ export const adminService = {
   async deactivateUser(userId: string): Promise<boolean> {
     const r = await runMutation<{ deactivateUser: boolean }>(DEACTIVATE_USER_MUTATION, { user_id: userId });
     return r?.deactivateUser ?? false;
+  },
+
+  async resetUserPassword(userId: string, newPassword: string): Promise<boolean> {
+    const r = await runMutation<{ resetUserPassword: boolean }>(RESET_USER_PASSWORD_MUTATION, {
+      user_id: userId,
+      new_password: newPassword,
+    });
+    return r?.resetUserPassword ?? false;
   },
 
   async createGroup(name: string, description?: string, isDefault = false): Promise<AppGroup> {

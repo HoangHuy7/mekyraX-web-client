@@ -32,7 +32,8 @@ async function submit() {
     await adminService.changePassword(form.value.oldPassword, form.value.newPassword);
     ElMessage.success(t('admin.changePassword.success'));
     emit('changed');
-    emit('update:modelValue', false);
+    // Reload so all data re-fetches with new session state
+    window.location.reload();
   } catch (e) {
     ElMessage.error(e instanceof Error ? e.message : t('admin.changePassword.failed'));
   } finally {
@@ -47,6 +48,7 @@ async function submit() {
     :title="t('admin.changePassword.title')"
     width="420px"
     :close-on-click-modal="false"
+    :close-on-press-escape="false"
     :show-close="false"
     @update:model-value="emit('update:modelValue', $event)"
   >

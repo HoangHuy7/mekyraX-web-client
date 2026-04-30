@@ -16,6 +16,7 @@ import {
   Fold,
   Expand,
   SwitchButton,
+  Loading,
 } from '@element-plus/icons-vue';
 
 useTabs();
@@ -29,7 +30,10 @@ const { locale, t } = useI18n();
 const isCollapse = ref(false);
 const isDark = ref(false);
 const language = ref(locale.value);
-const showChangePwd = ref(false);
+
+// Profile state — block layout until checked
+const profileReady = ref(false);
+const mustChangePwd = ref(false);
 
 const languageOptions = computed(() => [
   { value: 'vi', label: t('common.vietnamese') },
@@ -66,16 +70,22 @@ const initDarkMode = (): void => {
 
 initDarkMode();
 
+// First: fetch myProfile only — if mustChangePassword show dialog and block rest
 onMounted(async () => {
   try {
     const profile = await adminService.getMyProfile();
-    if (profile.mustChangePassword) {
-      showChangePwd.value = true;
-    }
+    mustChangePwd.value = profile.mustChangePassword;
   } catch {
     // ignore — user may not be in DB yet
+  } finally {
+    profileReady.value = true;
   }
 });
+
+// After password changed — reload page so everything re-fetches fresh
+function onPasswordChanged() {
+  window.location.reload();
+}
 
 const handleLogout = (): void => {
   authStore.logout();
@@ -115,7 +125,18 @@ const changeLanguage = (value: string): void => {
 </script>
 
 <template>
-  <el-container class="admin-layout">
+  <!-- Loading profile check -->
+  <div v-if="!profileReady" class="profile-loading">
+    <el-icon class="spin" :size="40"><Loading /></el-icon>
+  </div>
+
+  <!-- Force password change — render nothing else -->
+  <div v-else-if="mustChangePwd" class="profile-loading">
+    <ChangePasswordDialog :model-value="true" @changed="onPasswordChanged" />
+  </div>
+
+  <!-- Normal layout -->
+  <el-container v-else class="admin-layout">
     <el-aside :width="isCollapse ? '64px' : '200px'" class="sidebar">
       <div class="logo">
         <span v-if="!isCollapse">Admin</span>
@@ -178,15 +199,31 @@ const changeLanguage = (value: string): void => {
       </el-main>
     </el-container>
   </el-container>
-
-  <!-- Force password change dialog -->
-  <ChangePasswordDialog v-model="showChangePwd" @changed="showChangePwd = false" />
 </template>
 
 <style scoped>
 .admin-layout {
   height: 100vh;
   width: 100vw;
+}
+
+.profile-loading {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--el-bg-color-page);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+  color: var(--el-color-primary);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .sidebar {

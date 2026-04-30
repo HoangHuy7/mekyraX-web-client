@@ -77,9 +77,15 @@ onMounted(async () => {
 
     authStore.setLoading(false);
 
-    const redirectPath = localStorage.getItem('auth_redirect') || '/dashboard';
+    // Redirect to saved path or first accessible menu route (not hardcoded /dashboard)
+    const savedRedirect = localStorage.getItem('auth_redirect');
     localStorage.removeItem('auth_redirect');
-    router.push(redirectPath);
+
+    if (savedRedirect && savedRedirect !== '/') {
+      router.push(savedRedirect);
+    } else {
+      router.push('/');
+    }
   } catch (err) {
     authStore.setLoading(false);
     authStore.setError(err instanceof Error ? err.message : t('callback.authFailed'));

@@ -138,7 +138,7 @@ export function buildMenuTree(flat: MenuDef[]): MenuItem[] {
 
 export const fetchMenuFromApi = async (): Promise<MenuItem[]> => {
   const flat = await adminService.getMyMenus();
-  if (!flat.length) return menuConfig;
+  if (!flat.length) return []; // return empty, not hardcoded config
   return buildMenuTree(flat);
 };
 
