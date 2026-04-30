@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { Goods, Money, List, Plus, Document, User, CreditCard, Warning } from '@element-plus/icons-vue';
+import { Goods, Money, List, Plus, Document, User, CreditCard, Warning, Printer } from '@element-plus/icons-vue';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { LineChart, BarChart } from 'echarts/charts';
@@ -145,6 +145,20 @@ const goProducts = () => router.push('/products');
 const goOrders = () => router.push('/order-workspace');
 const goCustomers = () => router.push('/customers');
 const goOrderList = () => router.push('/orders');
+
+// ── Print ─────────────────────────────────────────────────────────────────────
+const printing = ref(false);
+const printDashboard = async () => {
+  printing.value = true;
+  try {
+    await dashboardService.printDashboard();
+    ElMessage.success('Xuất báo cáo thành công');
+  } catch {
+    ElMessage.error('Không thể xuất báo cáo');
+  } finally {
+    printing.value = false;
+  }
+};
 </script>
 
 <template>
@@ -155,7 +169,12 @@ const goOrderList = () => router.push('/orders');
         <h1 class="page-title">{{ t('dashboard.title') }}</h1>
         <p class="page-subtitle">{{ t('dashboard.subtitle') }}</p>
       </div>
-      <el-button type="success" :icon="Document" @click="goOrders">Tạo đơn hàng</el-button>
+      <div class="header-actions">
+        <el-button type="success" :icon="Document" @click="goOrders">Tạo đơn hàng</el-button>
+        <el-button type="primary" plain :icon="Printer" :loading="printing" @click="printDashboard">
+          In báo cáo
+        </el-button>
+      </div>
     </div>
 
     <!-- Stat cards -->
@@ -244,6 +263,7 @@ const goOrderList = () => router.push('/orders');
   align-items: flex-start;
   margin-bottom: 18px;
 }
+.header-actions { display: flex; gap: 8px; align-items: center; }
 .page-title { margin: 0 0 4px; font-size: 24px; font-weight: 700; color: var(--el-text-color-primary); }
 .page-subtitle { margin: 0; color: var(--el-text-color-secondary); font-size: 13px; }
 
