@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import { ArrowLeft, Edit, Plus, Box } from '@element-plus/icons-vue';
 import { productService } from '@/features/product/services/productService';
 import { inventoryService, type InventoryLog } from '@/features/product/services/inventoryService';

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import { RefreshRight, Search, ArrowDown, Plus } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { adminService } from '@/features/admin/services/adminService';
