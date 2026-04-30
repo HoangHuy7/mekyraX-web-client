@@ -5,6 +5,8 @@ export interface AppUser {
   email?: string;
   avatar?: string;
   isActive: boolean;
+  isSystem: boolean;
+  mustChangePassword: boolean;
   groupIds: string[];
   syncedAt?: string;
   createdAt: string;
@@ -31,4 +33,12 @@ export interface MenuDef {
     hidden: boolean;
     componentName?: string;
   };
+}
+
+export interface MyProfile {
+  id: string;
+  username: string;
+  displayName?: string;
+  mustChangePassword: boolean;
+  isSystem: boolean;
 }

@@ -13,6 +13,7 @@ import type { Component } from 'vue';
 import type { MenuItem } from '@/shared/types/menu.types';
 import { adminService } from '@/features/admin/services/adminService';
 import type { MenuDef } from '@/features/admin/types/admin.types';
+import { i18n } from '@/shared/i18n';
 
 // Map icon name string → Element Plus component
 const ICON_MAP: Record<string, Component> = {
@@ -72,19 +73,31 @@ export const menuConfig: MenuItem[] = [
   },
 ];
 
+// Resolve an i18n key or plain string label
+function resolveLabel(label: string): string {
+  try {
+    const translated = i18n.global.t(label);
+    // vue-i18n returns the key itself when not found — treat that as plain text
+    return translated !== label ? (translated as string) : label;
+  } catch {
+    return label;
+  }
+}
+
 // Build tree structure from flat MenuDef list returned by API
 export function buildMenuTree(flat: MenuDef[]): MenuItem[] {
   const map = new Map<string, MenuItem>();
 
   // First pass: create all items
   for (const d of flat) {
+    const label = resolveLabel(d.label);
     map.set(d.id, {
       id: d.id,
-      label: d.label,
+      label,
       path: d.path,
       icon: resolveIcon(d.icon),
       meta: {
-        title: d.label,
+        title: label,
         keepAlive: d.meta.keepAlive,
         hidden: d.meta.hidden,
         componentName: d.meta.componentName,

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { RefreshRight, Search } from '@element-plus/icons-vue';
+import { RefreshRight, Search, ArrowDown, Plus } from '@element-plus/icons-vue';
+import { useI18n } from 'vue-i18n';
 import { adminService } from '@/features/admin/services/adminService';
 import type { AppUser, AppGroup } from '@/features/admin/types/admin.types';
 
 defineOptions({ name: 'UserManagementPage' });
 
+const { t } = useI18n();
 const users = ref<AppUser[]>([]);
 const groups = ref<AppGroup[]>([]);
 const total = ref(0);
@@ -21,6 +23,11 @@ const selectedUser = ref<AppUser | null>(null);
 const selectedGroupId = ref('');
 const assigning = ref(false);
 
+// Add user dialog
+const addUserDialog = ref(false);
+const addUserForm = ref({ username: '', password: '', displayName: '', email: '', groupId: '' });
+const addingUser = ref(false);
+
 onMounted(async () => {
   await Promise.all([fetchUsers(), fetchGroups()]);
 });
@@ -32,7 +39,7 @@ async function fetchUsers() {
     users.value = result.data;
     total.value = result.total;
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : 'Lỗi tải danh sách user');
+    ElMessage.error(e instanceof Error ? e.message : t('admin.users.loadFailed'));
   } finally {
     loading.value = false;
   }
@@ -41,19 +48,17 @@ async function fetchUsers() {
 async function fetchGroups() {
   try {
     groups.value = await adminService.getGroups();
-  } catch {
-    // ignore
-  }
+  } catch { /* ignore */ }
 }
 
 async function syncUsers() {
   syncing.value = true;
   try {
     const count = await adminService.syncUsers();
-    ElMessage.success(`Đã sync ${count} users từ Casdoor`);
+    ElMessage.success(t('admin.users.syncSuccess', { count }));
     await fetchUsers();
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : 'Sync thất bại');
+    ElMessage.error(e instanceof Error ? e.message : t('admin.users.syncFailed'));
   } finally {
     syncing.value = false;
   }
@@ -69,18 +74,62 @@ async function confirmAssign() {
   if (!selectedUser.value || !selectedGroupId.value) return;
   assigning.value = true;
   try {
-    // Remove all existing groups first, then assign new
     for (const gid of selectedUser.value.groupIds) {
       await adminService.removeUserGroup(selectedUser.value.id, gid);
     }
     await adminService.assignUserGroup(selectedUser.value.id, selectedGroupId.value);
-    ElMessage.success('Đã cập nhật group');
+    ElMessage.success(t('admin.users.assignSuccess'));
     assignDialog.value = false;
     await fetchUsers();
   } catch (e) {
-    ElMessage.error(e instanceof Error ? e.message : 'Lỗi cập nhật group');
+    ElMessage.error(e instanceof Error ? e.message : t('admin.users.assignFailed'));
   } finally {
     assigning.value = false;
+  }
+}
+
+async function toggleActive(user: AppUser) {
+  if (user.isSystem) return;
+  try {
+    if (user.isActive) {
+      await adminService.deactivateUser(user.id);
+      ElMessage.success(t('admin.users.deactivateSuccess'));
+    } else {
+      await adminService.activateUser(user.id);
+      ElMessage.success(t('admin.users.activateSuccess'));
+    }
+    await fetchUsers();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : (user.isActive ? t('admin.users.deactivateFailed') : t('admin.users.activateFailed')));
+  }
+}
+
+async function addUser() {
+  if (!addUserForm.value.username.trim()) {
+    ElMessage.warning(t('admin.users.usernameLabel'));
+    return;
+  }
+  if (!addUserForm.value.password.trim()) {
+    ElMessage.warning(t('admin.users.passwordRequired'));
+    return;
+  }
+  addingUser.value = true;
+  try {
+    await adminService.createLocalUser(
+      addUserForm.value.username.trim(),
+      addUserForm.value.password.trim(),
+      addUserForm.value.displayName || undefined,
+      addUserForm.value.email || undefined,
+      addUserForm.value.groupId || undefined,
+    );
+    ElMessage.success(t('admin.users.createSuccess'));
+    addUserDialog.value = false;
+    addUserForm.value = { username: '', password: '', displayName: '', email: '', groupId: '' };
+    await fetchUsers();
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : t('admin.users.createFailed'));
+  } finally {
+    addingUser.value = false;
   }
 }
 
@@ -92,63 +141,86 @@ function handleSearch() {
   page.value = 1;
   fetchUsers();
 }
+
+function handleCommand(cmd: string, row: AppUser) {
+  if (cmd === 'assign') openAssign(row);
+  else if (cmd === 'toggle') toggleActive(row);
+}
 </script>
 
 <template>
   <div class="user-mgmt-page">
     <div class="page-header">
       <div>
-        <h1 class="page-title">Quản lý Users</h1>
-        <p class="page-subtitle">Danh sách người dùng, phân quyền group</p>
+        <h1 class="page-title">{{ t('admin.users.title') }}</h1>
+        <p class="page-subtitle">{{ t('admin.users.subtitle') }}</p>
       </div>
-      <el-button type="primary" :icon="RefreshRight" :loading="syncing" @click="syncUsers">
-        Sync từ Casdoor
-      </el-button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <el-button :icon="Plus" @click="addUserDialog = true">
+          {{ t('admin.users.addUser') }}
+        </el-button>
+        <el-button type="primary" :icon="RefreshRight" :loading="syncing" @click="syncUsers">
+          {{ t('admin.users.syncCasdoor') }}
+        </el-button>
+      </div>
     </div>
 
-    <!-- Search -->
     <el-card shadow="never" class="filter-card">
       <el-input
         v-model="keyword"
-        placeholder="Tìm theo username, tên, email..."
+        :placeholder="t('admin.users.searchPlaceholder')"
         :prefix-icon="Search"
         clearable
         style="width: 320px"
         @keyup.enter="handleSearch"
         @clear="handleSearch"
       />
-      <el-button type="primary" plain @click="handleSearch" style="margin-left: 8px">Tìm kiếm</el-button>
+      <el-button type="primary" plain @click="handleSearch" style="margin-left: 8px">
+        {{ t('admin.users.search') }}
+      </el-button>
     </el-card>
 
-    <!-- Table -->
     <el-card shadow="hover" v-loading="loading">
       <el-table :data="users" stripe style="width:100%">
-        <el-table-column label="Username" prop="username" min-width="140" />
-        <el-table-column label="Tên hiển thị" prop="displayName" min-width="140" />
-        <el-table-column label="Email" prop="email" min-width="180" />
-        <el-table-column label="Group" min-width="140">
+        <el-table-column :label="t('admin.users.username')" prop="username" min-width="120" show-overflow-tooltip />
+        <el-table-column :label="t('admin.users.displayName')" prop="displayName" min-width="130" show-overflow-tooltip />
+        <el-table-column :label="t('admin.users.email')" prop="email" min-width="160" show-overflow-tooltip />
+        <el-table-column :label="t('admin.users.group')" min-width="120">
           <template #default="{ row }">
             <el-tag v-for="gid in row.groupIds" :key="gid" size="small" style="margin-right:4px">
               {{ getGroupName(gid) }}
             </el-tag>
-            <span v-if="!row.groupIds.length" class="text-secondary">Chưa có group</span>
+            <span v-if="!row.groupIds.length" class="text-secondary">{{ t('admin.users.noGroup') }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="Trạng thái" width="110">
+        <el-table-column :label="t('admin.users.status')" width="110">
           <template #default="{ row }">
-            <el-tag :type="row.isActive ? 'success' : 'info'" size="small">
-              {{ row.isActive ? 'Hoạt động' : 'Tắt' }}
+            <el-tag v-if="row.isSystem" size="small" type="warning">{{ t('admin.users.systemUser') }}</el-tag>
+            <el-tag v-else :type="row.isActive ? 'success' : 'info'" size="small">
+              {{ row.isActive ? t('admin.users.active') : t('admin.users.inactive') }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Sync lần cuối" min-width="160">
+        <el-table-column :label="t('admin.users.lastSync')" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.syncedAt ? new Date(row.syncedAt).toLocaleString('vi-VN') : '—' }}
           </template>
         </el-table-column>
-        <el-table-column label="Thao tác" width="110" fixed="right">
+        <el-table-column :label="t('admin.users.actions')" width="80" fixed="right" align="center">
           <template #default="{ row }">
-            <el-button size="small" @click="openAssign(row)">Phân group</el-button>
+            <el-dropdown trigger="click" @command="(cmd: string) => handleCommand(cmd, row)">
+              <el-button size="small" type="primary" plain>
+                <el-icon><ArrowDown /></el-icon>
+              </el-button>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="assign">{{ t('admin.users.assignGroup') }}</el-dropdown-item>
+                  <el-dropdown-item v-if="!row.isSystem" command="toggle" :divided="true">
+                    {{ row.isActive ? t('admin.users.deactivate') : t('admin.users.activate') }}
+                  </el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
           </template>
         </el-table-column>
       </el-table>
@@ -164,19 +236,48 @@ function handleSearch() {
     </el-card>
 
     <!-- Assign group dialog -->
-    <el-dialog v-model="assignDialog" title="Phân group cho user" width="380px">
+    <el-dialog v-model="assignDialog" :title="t('admin.users.assignGroupTitle')" width="380px">
       <div v-if="selectedUser">
         <p style="margin-bottom:12px">
           User: <strong>{{ selectedUser.displayName || selectedUser.username }}</strong>
         </p>
-        <el-select v-model="selectedGroupId" placeholder="Chọn group" style="width:100%">
+        <el-select v-model="selectedGroupId" :placeholder="t('admin.users.selectGroup')" style="width:100%">
           <el-option v-for="g in groups" :key="g.id" :label="g.name" :value="g.id" />
         </el-select>
       </div>
       <template #footer>
-        <el-button @click="assignDialog = false">Hủy</el-button>
+        <el-button @click="assignDialog = false">{{ t('admin.users.cancel') }}</el-button>
         <el-button type="primary" :loading="assigning" :disabled="!selectedGroupId" @click="confirmAssign">
-          Xác nhận
+          {{ t('admin.users.confirm') }}
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Add user dialog -->
+    <el-dialog v-model="addUserDialog" :title="t('admin.users.addUserTitle')" width="420px">
+      <el-form :model="addUserForm" label-width="120px">
+        <el-form-item :label="t('admin.users.usernameLabel')" required>
+          <el-input v-model="addUserForm.username" :placeholder="t('admin.users.usernamePlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="t('admin.users.passwordLabel')" required>
+          <el-input v-model="addUserForm.password" type="password" show-password :placeholder="t('admin.users.passwordPlaceholder')" />
+        </el-form-item>
+        <el-form-item :label="t('admin.users.displayName')">
+          <el-input v-model="addUserForm.displayName" />
+        </el-form-item>
+        <el-form-item :label="t('admin.users.email')">
+          <el-input v-model="addUserForm.email" type="email" />
+        </el-form-item>
+        <el-form-item :label="t('admin.users.group')">
+          <el-select v-model="addUserForm.groupId" :placeholder="t('admin.users.selectGroup')" style="width:100%" clearable>
+            <el-option v-for="g in groups" :key="g.id" :label="g.name" :value="g.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addUserDialog = false">{{ t('admin.users.cancel') }}</el-button>
+        <el-button type="primary" :loading="addingUser" @click="addUser">
+          {{ t('admin.groups.create') }}
         </el-button>
       </template>
     </el-dialog>
@@ -185,7 +286,7 @@ function handleSearch() {
 
 <style scoped>
 .user-mgmt-page { padding: 8px; }
-.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.page-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
 .page-title { margin: 0 0 4px; font-size: 22px; font-weight: 700; }
 .page-subtitle { margin: 0; color: var(--el-text-color-secondary); font-size: 13px; }
 .filter-card { margin-bottom: 14px; }

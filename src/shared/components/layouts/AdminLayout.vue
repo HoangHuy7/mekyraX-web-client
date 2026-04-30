@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useTabStore } from '@/shared/store/tabStore';
@@ -8,6 +8,8 @@ import { useTabs } from '@/shared/hooks/useTabs';
 import { loadRuntimeConfig } from '@/shared/config/runtimeConfig';
 import TabBar from '@/shared/components/tabs/TabBar.vue';
 import SidebarMenu from '@/shared/components/menu/SidebarMenu.vue';
+import ChangePasswordDialog from '@/shared/components/common/ChangePasswordDialog.vue';
+import { adminService } from '@/features/admin/services/adminService';
 import {
   Moon,
   Sunny,
@@ -27,6 +29,7 @@ const { locale, t } = useI18n();
 const isCollapse = ref(false);
 const isDark = ref(false);
 const language = ref(locale.value);
+const showChangePwd = ref(false);
 
 const languageOptions = computed(() => [
   { value: 'vi', label: t('common.vietnamese') },
@@ -55,7 +58,6 @@ const initDarkMode = (): void => {
   const savedTheme = localStorage.getItem('theme');
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
-  
   if (shouldBeDark) {
     isDark.value = true;
     document.documentElement.classList.add('dark');
@@ -64,14 +66,24 @@ const initDarkMode = (): void => {
 
 initDarkMode();
 
+onMounted(async () => {
+  try {
+    const profile = await adminService.getMyProfile();
+    if (profile.mustChangePassword) {
+      showChangePwd.value = true;
+    }
+  } catch {
+    // ignore — user may not be in DB yet
+  }
+});
+
 const handleLogout = (): void => {
   authStore.logout();
-  logout().then(()=>{
-  })
+  logout().then(() => {});
 };
 
 const logout = async () => {
-  const token = localStorage.getItem('casdoor_access_token')
+  const token = localStorage.getItem('casdoor_access_token');
   let casdoorServerUrl = 'http://localhost:8000';
   try {
     const config = await loadRuntimeConfig();
@@ -79,25 +91,21 @@ const logout = async () => {
   } catch {
     // use fallback
   }
-
   try {
     await fetch(`${casdoorServerUrl}/api/sso-logout`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
       credentials: 'include',
-    })
+    });
   } catch (e) {
-    console.error(e)
+    console.error(e);
   } finally {
-    // Xóa tất cả keys trừ app_setup_info (cấu hình merchant cần giữ lại)
     const preserved = ['app_setup_info'];
     const keysToRemove = Object.keys(localStorage).filter(k => !preserved.includes(k));
     keysToRemove.forEach(k => localStorage.removeItem(k));
-    router.push('/login')
+    router.push('/login');
   }
-}
+};
 
 const changeLanguage = (value: string): void => {
   locale.value = value;
@@ -170,6 +178,9 @@ const changeLanguage = (value: string): void => {
       </el-main>
     </el-container>
   </el-container>
+
+  <!-- Force password change dialog -->
+  <ChangePasswordDialog v-model="showChangePwd" @changed="showChangePwd = false" />
 </template>
 
 <style scoped>
