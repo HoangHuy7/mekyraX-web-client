@@ -1,5 +1,5 @@
 import { gql } from '@apollo/client/core';
-import { runQuery } from '@/shared/graphql/request';
+import { runQuery, runMutation } from '@/shared/graphql/request';
 import type { DashboardStats, DailySalesPoint, MonthlySalesPoint } from '@/features/dashboard/types/dashboard.types';
 
 const DASHBOARD_STATS_QUERY = gql`
@@ -99,5 +99,32 @@ export const dashboardService = {
       quantity: d.quantity,
       total: Number(d.total),
     }));
+  },
+
+  async printDashboard(): Promise<void> {
+    const PRINT_REPORT = gql`
+      mutation PrintReport($input: PrintReportInput!) {
+        printReport(input: $input) {
+          data
+          filename
+        }
+      }
+    `;
+    const result = await runMutation<{ printReport: { data: string; filename: string } }>(
+      PRINT_REPORT,
+      { input: { report_id: 'dashboard', params: '{}' } },
+    );
+    const base64 = result?.printReport?.data;
+    if (!base64) throw new Error('No PDF data returned');
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = result.printReport.filename || 'dashboard.pdf';
+    a.click();
+    URL.revokeObjectURL(url);
   },
 };

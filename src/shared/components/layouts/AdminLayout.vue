@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { useTabStore } from '@/shared/store/tabStore';
@@ -8,12 +8,15 @@ import { useTabs } from '@/shared/hooks/useTabs';
 import { loadRuntimeConfig } from '@/shared/config/runtimeConfig';
 import TabBar from '@/shared/components/tabs/TabBar.vue';
 import SidebarMenu from '@/shared/components/menu/SidebarMenu.vue';
+import ChangePasswordDialog from '@/shared/components/common/ChangePasswordDialog.vue';
+import { adminService } from '@/features/admin/services/adminService';
 import {
   Moon,
   Sunny,
   Fold,
   Expand,
   SwitchButton,
+  Loading,
 } from '@element-plus/icons-vue';
 
 useTabs();
@@ -27,6 +30,10 @@ const { locale, t } = useI18n();
 const isCollapse = ref(false);
 const isDark = ref(false);
 const language = ref(locale.value);
+
+// Profile state — block layout until checked
+const profileReady = ref(false);
+const mustChangePwd = ref(false);
 
 const languageOptions = computed(() => [
   { value: 'vi', label: t('common.vietnamese') },
@@ -55,7 +62,6 @@ const initDarkMode = (): void => {
   const savedTheme = localStorage.getItem('theme');
   const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   const shouldBeDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
-  
   if (shouldBeDark) {
     isDark.value = true;
     document.documentElement.classList.add('dark');
@@ -64,14 +70,30 @@ const initDarkMode = (): void => {
 
 initDarkMode();
 
+// First: fetch myProfile only — if mustChangePassword show dialog and block rest
+onMounted(async () => {
+  try {
+    const profile = await adminService.getMyProfile();
+    mustChangePwd.value = profile.mustChangePassword;
+  } catch {
+    // ignore — user may not be in DB yet
+  } finally {
+    profileReady.value = true;
+  }
+});
+
+// After password changed — reload page so everything re-fetches fresh
+function onPasswordChanged() {
+  window.location.reload();
+}
+
 const handleLogout = (): void => {
   authStore.logout();
-  logout().then(()=>{
-  })
+  logout().then(() => {});
 };
 
 const logout = async () => {
-  const token = localStorage.getItem('casdoor_access_token')
+  const token = localStorage.getItem('casdoor_access_token');
   let casdoorServerUrl = 'http://localhost:8000';
   try {
     const config = await loadRuntimeConfig();
@@ -79,25 +101,21 @@ const logout = async () => {
   } catch {
     // use fallback
   }
-
   try {
     await fetch(`${casdoorServerUrl}/api/sso-logout`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
       credentials: 'include',
-    })
+    });
   } catch (e) {
-    console.error(e)
+    console.error(e);
   } finally {
-    // Xóa tất cả keys trừ app_setup_info (cấu hình merchant cần giữ lại)
     const preserved = ['app_setup_info'];
     const keysToRemove = Object.keys(localStorage).filter(k => !preserved.includes(k));
     keysToRemove.forEach(k => localStorage.removeItem(k));
-    router.push('/login')
+    router.push('/login');
   }
-}
+};
 
 const changeLanguage = (value: string): void => {
   locale.value = value;
@@ -107,7 +125,18 @@ const changeLanguage = (value: string): void => {
 </script>
 
 <template>
-  <el-container class="admin-layout">
+  <!-- Loading profile check -->
+  <div v-if="!profileReady" class="profile-loading">
+    <el-icon class="spin" :size="40"><Loading /></el-icon>
+  </div>
+
+  <!-- Force password change — render nothing else -->
+  <div v-else-if="mustChangePwd" class="profile-loading">
+    <ChangePasswordDialog :model-value="true" @changed="onPasswordChanged" />
+  </div>
+
+  <!-- Normal layout -->
+  <el-container v-else class="admin-layout">
     <el-aside :width="isCollapse ? '64px' : '200px'" class="sidebar">
       <div class="logo">
         <span v-if="!isCollapse">Admin</span>
@@ -176,6 +205,25 @@ const changeLanguage = (value: string): void => {
 .admin-layout {
   height: 100vh;
   width: 100vw;
+}
+
+.profile-loading {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--el-bg-color-page);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+  color: var(--el-color-primary);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .sidebar {

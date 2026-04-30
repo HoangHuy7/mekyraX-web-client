@@ -5,12 +5,14 @@ import { useI18n } from 'vue-i18n';
 import { Loading } from '@element-plus/icons-vue';
 import SDK from 'casdoor-js-sdk';
 import { useAuthStore } from '@/features/auth/store/auth.store';
+import { useMenuStore } from '@/shared/store/menuStore';
 import type { User } from '@/features/auth/types/auth.types';
 import { getStoredSetupInfo, loadRuntimeConfig, resolveCasdoorConfig } from '@/shared/config/runtimeConfig';
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const menuStore = useMenuStore();
 const { t } = useI18n();
 
 const parseUserFromToken = (token: string): User => {
@@ -68,13 +70,22 @@ onMounted(async () => {
     localStorage.setItem('casdoor_access_token', accessToken);
 
     const userInfo = parseUserFromToken(accessToken);
-
     authStore.setUser(userInfo);
+
+    // Load menus from API based on user's groups
+    await menuStore.loadMenus(true);
+
     authStore.setLoading(false);
 
-    const redirectPath = localStorage.getItem('auth_redirect') || '/dashboard';
+    // Redirect to saved path or first accessible menu route (not hardcoded /dashboard)
+    const savedRedirect = localStorage.getItem('auth_redirect');
     localStorage.removeItem('auth_redirect');
-    router.push(redirectPath);
+
+    if (savedRedirect && savedRedirect !== '/') {
+      router.push(savedRedirect);
+    } else {
+      router.push('/');
+    }
   } catch (err) {
     authStore.setLoading(false);
     authStore.setError(err instanceof Error ? err.message : t('callback.authFailed'));

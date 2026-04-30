@@ -24,8 +24,10 @@ const openedMenus = computed<string[]>(() => {
   return parents.map((p) => p.id);
 });
 
-onMounted(() => {
-  menuStore.loadMenus();
+onMounted(async () => {
+  // Always load from API if user has a token so F5 re-fetches the correct menus.
+  const hasToken = !!localStorage.getItem('casdoor_access_token');
+  await menuStore.loadMenus(hasToken);
   defaultOpeneds.value = openedMenus.value;
 });
 </script>

@@ -7,6 +7,7 @@ export const useMenuStore = defineStore('menu', () => {
   const menus = ref<MenuItem[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
+  const menusLoaded = ref(false);
 
   const visibleMenus = computed<MenuItem[]>(() => {
     const filterHidden = (items: MenuItem[]): MenuItem[] => {
@@ -61,9 +62,13 @@ export const useMenuStore = defineStore('menu', () => {
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load menus';
-      menus.value = menuConfig;
+      if (!fromApi) {
+        menus.value = menuConfig; // fallback only for hardcoded mode
+      }
+      // if fromApi fails, keep menus empty → user gets /403 for protected routes
     } finally {
       loading.value = false;
+      menusLoaded.value = true;
     }
   };
 
@@ -95,6 +100,7 @@ export const useMenuStore = defineStore('menu', () => {
     menus,
     loading,
     error,
+    menusLoaded,
     visibleMenus,
     flatMenus,
     menuPaths,
